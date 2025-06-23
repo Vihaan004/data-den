@@ -1,0 +1,14 @@
+NVIDIA GPU Acceleration Materials
+
+- Accelerated computing hub: https://github.com/NVIDIA/accelerated-computing-hub/tree/main
+  Notebooks and additional text.
+  - FYI -- LangChain has a document loader for source code: https://python.langchain.com/docs/integrations/document_loaders/source_code/
+- Blog posts: https://developer.nvidia.com/blog/category/data-science/
+  - RAPIDS: https://developer.nvidia.com/blog/rapids-brings-zero-code-change-acceleration-io-performance-gains-and-out-of-core-xgboost/
+  - Accelerating ML Models with NVIDIA CUDA-X Data Science: https://developer.nvidia.com/blog/ai-in-manufacturing-and-operations-at-nvidia-accelerating-ml-models-with-nvidia-cuda-x-data-science/
+- RAPIDS page has relevant blogs: https://medium.com/rapids-ai
+  - RAPIDS 23.08 release: https://medium.com/rapids-ai/rapids-23-08-release-23db51c255f0
+  - Easy CPU/GPU Arrays and DataFrames: https://medium.com/rapids-ai/easy-cpu-gpu-arrays-and-dataframes-run-your-dask-code-where-youd-like-e349d92351d
+- CuPy blogs:
+  - CuPy v13: https://medium.com/cupy-team/announcing-cupy-v13-66979ee7fab0
+  - 50x Faster NumPy on GPUs with CuPy: https://www.unum.cloud/blog/2022-01-26-cupy

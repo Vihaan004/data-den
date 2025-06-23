@@ -1,0 +1,12 @@
+Additional Resources
+
+- LangGraph original tutorial: https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_agentic_rag/
+- LangGraph graphs overview: https://langchain-ai.github.io/langgraph/concepts/low_level/
+- LangChain vectorstores: https://python.langchain.com/docs/integrations/vectorstores/
+- LangChain document loaders: https://python.langchain.com/docs/integrations/document_loaders/
+- LangChain create custom tools: https://python.langchain.com/docs/how_to/custom_tools/
+- LangChain parse LLM output in structured format: https://python.langchain.com/docs/how_to/output_parser_structured/
+- LangGraph self RAG using local llms: https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_self_rag_local/#llms_1
+- LangChain hybrid search: https://python.langchain.com/docs/how_to/hybrid/
+- LangChain use chat models to call tools: https://python.langchain.com/docs/how_to/tool_calling/
+
