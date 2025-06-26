@@ -813,10 +813,11 @@ Select a category, benchmark, and problem size from the left panel, then click *
 
 if __name__ == "__main__":
     # Launch the enhanced interface
-    demo.launch(
-        server_name="0.0.0.0",  # Allow external access on Sol
-        server_port=7860,
-        share=False,  # Don't create public link for security
-        debug=True,
-        show_error=True
-    )
+    # demo.launch(
+    #     server_name="0.0.0.0",  # Allow external access on Sol
+    #     server_port=7860,
+    #     share=False,  # Don't create public link for security
+    #     debug=True,
+    #     show_error=True
+    # )
+    demo.launch(share=True)
