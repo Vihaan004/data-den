@@ -19,9 +19,9 @@ except ImportError:
     # Fallback for direct module execution
     import sys
     sys.path.append('.')
-    from rag_pipeline import RAGPipeline
-    from benchmark_engine import BenchmarkEngine
-    from code_optimizer import CodeOptimizer
+    from core.rag_pipeline import RAGPipeline
+    from core.benchmark_engine import BenchmarkEngine
+    from core.code_optimizer import CodeOptimizer
     try:
         from config import settings
     except ImportError:
