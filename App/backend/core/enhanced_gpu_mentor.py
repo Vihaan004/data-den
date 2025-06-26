@@ -18,6 +18,20 @@ try:
 except ImportError:
     # Fallback for direct module execution
     import sys
+    sys.path.append('.')
+    from rag_pipeline import RAGPipeline
+    from benchmark_engine import BenchmarkEngine
+    from code_optimizer import CodeOptimizer
+    try:
+        from config import settings
+    except ImportError:
+        # Create fallback settings
+        class FallbackSettings:
+            ENABLE_DETAILED_EXPLANATIONS = True
+            INCLUDE_PERFORMANCE_TIPS = True
+            DEBUG_MODE = False
+            VERBOSE_LOGGING = True
+        settings = FallbackSettings()
     import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     try:

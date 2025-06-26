@@ -38,6 +38,13 @@ echo "Python path configured: $PYTHONPATH"
 
 # Install any missing dependencies
 echo ""
+echo "=== Installing Missing Dependencies ==="
+pip install pydantic-settings --user --quiet
+
+# Run the final verification test
+echo ""
+echo "=== RUNNING FINAL VERIFICATION TEST ==="
+python test_final.py
 echo "=== Installing Dependencies ==="
 pip install -r requirements.txt --user
 

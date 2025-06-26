@@ -3,7 +3,18 @@ Configuration settings for GPU Mentor Backend
 """
 import os
 from typing import Optional
-from pydantic import BaseSettings
+
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    try:
+        from pydantic import BaseSettings
+    except ImportError:
+        # Fallback for environments without pydantic
+        class BaseSettings:
+            def __init__(self, **kwargs):
+                for key, value in kwargs.items():
+                    setattr(self, key, value)
 
 
 class Settings(BaseSettings):
