@@ -9,6 +9,7 @@ sys.path.append('.')
 import gradio as gr
 import traceback
 import json
+import asyncio
 from datetime import datetime
 from core.enhanced_gpu_mentor import EnhancedGPUMentor
 from core.benchmark_engine import BenchmarkEngine
@@ -121,15 +122,60 @@ print(f"Average result: {np.mean(final_result):.4f}")'''
 def chat_with_mentor(message, code, chat_history):
     """Handle chat interactions with the GPU Mentor - integrates code with LLM."""
     
+    if not gpu_mentor:
+        error_msg = "❌ GPU Mentor backend not initialized"
+        if chat_history is None:
+            chat_history = []
+        chat_history.append({"role": "user", "content": message})
+        chat_history.append({"role": "assistant", "content": error_msg})
+        return "", "", chat_history, None, ""
+    
     try:
-        # Process user input through the enhanced mentor (code + message together)
-        response = gpu_mentor.process_user_input(message, code)
+        # Check if process_user_input is async and handle accordingly
+        if hasattr(gpu_mentor, 'process_user_input'):
+            # Try to run the async method synchronously
+            try:
+                import inspect
+                if inspect.iscoroutinefunction(gpu_mentor.process_user_input):
+                    # Create new event loop for async function
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    response = loop.run_until_complete(gpu_mentor.process_user_input(message, code))
+                    loop.close()
+                else:
+                    # Call synchronously if not async
+                    response = gpu_mentor.process_user_input(message, code)
+            except Exception as async_error:
+                # Fallback: try to get a basic response from RAG system
+                print(f"Async error, trying fallback: {async_error}")
+                if hasattr(gpu_mentor, 'rag_graph'):
+                    rag_result = gpu_mentor.rag_graph.invoke({
+                        "messages": [{"role": "user", "content": message}]
+                    })
+                    response = {
+                        "text_response": rag_result["messages"][-1].content,
+                        "code_analysis": None,
+                        "code_output": None,
+                        "optimized_code": "",
+                        "socratic_questions": []
+                    }
+                else:
+                    raise async_error
+        else:
+            # Fallback: use explain_optimization method
+            response = {
+                "text_response": gpu_mentor.explain_optimization(message),
+                "code_analysis": None,
+                "code_output": None,
+                "optimized_code": "",
+                "socratic_questions": []
+            }
         
         # Format response for chat
         formatted_response = response["text_response"]
         
         # Add code analysis if available
-        if response["code_analysis"]:
+        if response.get("code_analysis"):
             analysis = response["code_analysis"]
             formatted_response += f"\n\n**📊 Code Analysis:**\n"
             formatted_response += f"• Libraries detected: {', '.join(analysis['libraries_detected'])}\n"
@@ -140,7 +186,7 @@ def chat_with_mentor(message, code, chat_history):
                 formatted_response += f"• ⚠️ Warnings: {'; '.join(analysis['warnings'])}\n"
         
         # Add code execution output
-        if response["code_output"]:
+        if response.get("code_output"):
             output = response["code_output"]
             formatted_response += f"\n\n**⚡ Code Execution Results:**\n"
             
@@ -161,7 +207,7 @@ def chat_with_mentor(message, code, chat_history):
                     formatted_response += f"• 🚨 Error details:\n```\n{output['stderr']}\n```\n"
         
         # Add Socratic questions
-        if response["socratic_questions"]:
+        if response.get("socratic_questions"):
             formatted_response += f"\n\n**🤔 Think About This:**\n"
             for i, question in enumerate(response["socratic_questions"], 1):
                 formatted_response += f"{i}. {question}\n"
@@ -182,6 +228,8 @@ def chat_with_mentor(message, code, chat_history):
         
     except Exception as e:
         error_msg = f"❌ Error: {str(e)}"
+        print(f"Chat error: {e}")
+        traceback.print_exc()
         if chat_history is None:
             chat_history = []
         chat_history.append({"role": "user", "content": message})
@@ -193,6 +241,9 @@ def analyze_code_only(code):
     
     if not code.strip():
         return "Please provide code to analyze.", ""
+    
+    if not gpu_mentor:
+        return "❌ GPU Mentor backend not initialized", ""
     
     try:
         # Use LLM for both analysis and optimization
@@ -215,10 +266,13 @@ Format your response with clear sections and bullet points for readability.
 """
         
         # Get analysis from LLM
-        analysis_result = gpu_mentor.rag_graph.invoke({
-            "messages": [{"role": "user", "content": analysis_prompt}]
-        })
-        analysis_text = analysis_result["messages"][-1].content
+        if hasattr(gpu_mentor, 'rag_graph'):
+            analysis_result = gpu_mentor.rag_graph.invoke({
+                "messages": [{"role": "user", "content": analysis_prompt}]
+            })
+            analysis_text = analysis_result["messages"][-1].content
+        else:
+            analysis_text = "RAG system not available"
         
         # Generate GPU-optimized code using LLM
         optimization_prompt = f"""
@@ -241,10 +295,13 @@ Return ONLY the optimized Python code without explanations or markdown formattin
 """
         
         # Get optimized code from LLM
-        optimization_result = gpu_mentor.rag_graph.invoke({
-            "messages": [{"role": "user", "content": optimization_prompt}]
-        })
-        optimized_code = optimization_result["messages"][-1].content
+        if hasattr(gpu_mentor, 'rag_graph'):
+            optimization_result = gpu_mentor.rag_graph.invoke({
+                "messages": [{"role": "user", "content": optimization_prompt}]
+            })
+            optimized_code = optimization_result["messages"][-1].content
+        else:
+            optimized_code = "# RAG system not available for code optimization"
         
         # Clean up the optimized code (remove markdown formatting if present)
         if "```python" in optimized_code:
@@ -255,6 +312,8 @@ Return ONLY the optimized Python code without explanations or markdown formattin
         return analysis_text, optimized_code
         
     except Exception as e:
+        print(f"Code analysis error: {e}")
+        traceback.print_exc()
         return f"Error analyzing code: {str(e)}", ""
 
 def get_tutorial(topic):
@@ -263,10 +322,47 @@ def get_tutorial(topic):
     if not topic.strip():
         return "Please specify a topic for the tutorial."
     
+    if not gpu_mentor:
+        return "❌ GPU Mentor backend not initialized"
+    
     try:
-        tutorial_content = gpu_mentor.generate_tutorial_content(topic)
+        if hasattr(gpu_mentor, 'generate_tutorial_content'):
+            # Check if it's async
+            import inspect
+            if inspect.iscoroutinefunction(gpu_mentor.generate_tutorial_content):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                tutorial_content = loop.run_until_complete(gpu_mentor.generate_tutorial_content(topic))
+                loop.close()
+            else:
+                tutorial_content = gpu_mentor.generate_tutorial_content(topic)
+        else:
+            # Fallback: use RAG system directly
+            if hasattr(gpu_mentor, 'rag_graph'):
+                tutorial_prompt = f"""
+Create a comprehensive tutorial on the topic: {topic}
+
+Please include:
+1. Introduction and overview
+2. Key concepts and definitions  
+3. Step-by-step examples with code
+4. Best practices and common pitfalls
+5. Advanced tips and optimization techniques
+6. Further reading and resources
+
+Format the tutorial with clear headings and code examples.
+"""
+                result = gpu_mentor.rag_graph.invoke({
+                    "messages": [{"role": "user", "content": tutorial_prompt}]
+                })
+                tutorial_content = result["messages"][-1].content
+            else:
+                tutorial_content = f"Tutorial generation not available. Topic requested: {topic}"
+        
         return tutorial_content
     except Exception as e:
+        print(f"Tutorial generation error: {e}")
+        traceback.print_exc()
         return f"Error generating tutorial: {str(e)}"
 
 def clear_chat():
