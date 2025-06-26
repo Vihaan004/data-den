@@ -234,6 +234,9 @@ class RAGPipeline:
         logger.info("Setting up LLM model...")
         
         try:
+            # Check if Ollama is available
+            await self._check_ollama_connection()
+            
             host_node = socket.gethostname()
             base_url = settings.ollama_base_url.replace("localhost", host_node)
             
@@ -248,11 +251,64 @@ class RAGPipeline:
             
         except Exception as e:
             logger.error(f"Error setting up LLM: {e}")
-            raise
+            logger.warning("Falling back to mock LLM responses")
+            self.llm_model = None
+    
+    async def _check_ollama_connection(self) -> None:
+        """Check if Ollama service is available."""
+        import aiohttp
+        try:
+            host_node = socket.gethostname()
+            base_url = settings.ollama_base_url.replace("localhost", host_node)
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/api/tags", timeout=5) as response:
+                    if response.status != 200:
+                        raise ConnectionError(f"Ollama service not responding: {response.status}")
+                    
+                    data = await response.json()
+                    models = [model['name'] for model in data.get('models', [])]
+                    
+                    if settings.ollama_model not in models:
+                        logger.warning(f"Model {settings.ollama_model} not found in Ollama. Available: {models}")
+                        # Don't raise error, let it try anyway
+            
+            logger.info("Ollama connection verified")
+            
+        except Exception as e:
+            logger.error(f"Cannot connect to Ollama at {base_url}: {e}")
+            raise ConnectionError(f"Ollama service unavailable: {e}")
+    
+    def _create_fallback_response(self, user_input: str) -> str:
+        """Create a fallback response when LLM is unavailable."""
+        return f"""I apologize, but the AI language model is currently unavailable. Here's some general guidance for GPU acceleration in Python:
+
+**For your query:** "{user_input[:100]}..."
+
+**General GPU Acceleration Tips:**
+• Use **CuPy** to replace NumPy operations for GPU acceleration
+• Use **cuDF** instead of Pandas for large DataFrame operations  
+• Use **cuML** instead of scikit-learn for machine learning algorithms
+• Consider **Numba CUDA** for custom GPU kernels
+• Use **RAPIDS** ecosystem for end-to-end GPU data science workflows
+
+**Next Steps:**
+• Check if Ollama service is running: `curl http://localhost:11434/api/tags`
+• Ensure the model is pulled: `ollama pull {settings.ollama_model}`
+• Restart the backend after fixing the connection
+
+**Note:** This is a fallback response. Full AI-powered analysis will be available once the language model connection is restored.
+"""
     
     async def _compile_workflow(self) -> None:
         """Compile the LangGraph workflow."""
         logger.info("Compiling workflow graph...")
+        
+        # Skip workflow compilation if LLM is not available
+        if not self.llm_model:
+            logger.warning("LLM not available, skipping workflow compilation")
+            self.graph = None
+            return
         
         workflow = StateGraph(MessagesState)
         
@@ -283,9 +339,12 @@ class RAGPipeline:
         workflow.add_edge("rewrite_question", "generate_query_or_respond")
         
         # Compile graph
-        self.graph = workflow.compile()
-        
-        logger.info("Workflow graph compiled successfully")
+        try:
+            self.graph = workflow.compile()
+            logger.info("Workflow graph compiled successfully")
+        except Exception as e:
+            logger.error(f"Error compiling workflow: {e}")
+            self.graph = None
     
     def _generate_query_or_respond(self, state: MessagesState) -> Dict[str, Any]:
         """Generate query or respond based on current state."""
@@ -373,9 +432,30 @@ class RAGPipeline:
     def invoke(self, messages: Dict[str, Any]) -> Dict[str, Any]:
         """Invoke the RAG pipeline with user messages."""
         if not self.graph:
-            raise RuntimeError("RAG pipeline not initialized. Call initialize() first.")
+            # If no graph is available, return fallback response
+            user_messages = messages.get("messages", [])
+            user_input = user_messages[0].get("content", "") if user_messages else ""
+            
+            fallback_response = self._create_fallback_response(user_input)
+            return {
+                "messages": [
+                    AIMessage(content=fallback_response)
+                ]
+            }
         
-        return self.graph.invoke(messages)
+        try:
+            return self.graph.invoke(messages)
+        except Exception as e:
+            logger.error(f"Error in RAG pipeline: {e}")
+            user_messages = messages.get("messages", [])
+            user_input = user_messages[0].get("content", "") if user_messages else ""
+            
+            fallback_response = self._create_fallback_response(user_input)
+            return {
+                "messages": [
+                    AIMessage(content=fallback_response)
+                ]
+            }
     
     def stream(self, messages: Dict[str, Any]):
         """Stream responses from the RAG pipeline."""

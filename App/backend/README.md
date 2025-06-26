@@ -172,6 +172,13 @@ If you see "RAG pipeline not initialized. Call initialize() first.":
 2. OR click "🔄 Initialize Backend" button in Gradio UI
 3. OR ensure your code calls `await gpu_mentor.initialize()` before use
 
+If you see "Connection refused" errors:
+1. Start Ollama service: `./start_ollama.sh`
+2. Or manually: `ollama serve` and `ollama pull qwen2:14b`
+3. The system will fall back to basic responses if Ollama is unavailable
+
+For other issues, see `TROUBLESHOOTING.md` for comprehensive solutions.
+
 ## 🔧 Configuration
 
 ### Environment Variables (.env)

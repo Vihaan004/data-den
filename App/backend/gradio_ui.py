@@ -156,6 +156,37 @@ async def initialize_backend_ui():
     except Exception as e:
         return f"❌ **Backend Status**: Initialization error - {str(e)}"
 
+def initialize_backend_sync():
+    """Synchronous wrapper for backend initialization."""
+    try:
+        import asyncio
+        # Try to get existing event loop, if none create new one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is running, we need to run in a new thread
+                import concurrent.futures
+                import threading
+                
+                def run_async():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(initialize_backend_ui())
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async)
+                    return future.result(timeout=60)  # 60 second timeout
+            else:
+                return loop.run_until_complete(initialize_backend_ui())
+        except RuntimeError:
+            # No event loop exists
+            return asyncio.run(initialize_backend_ui())
+    except Exception as e:
+        return f"❌ **Backend Status**: Initialization failed - {str(e)}"
+
 def chat_with_mentor(message, code, chat_history):
     """Handle chat interactions with the GPU Mentor - integrates code with LLM."""
     
@@ -785,7 +816,7 @@ Select a category, benchmark, and problem size from the left panel, then click *
     load_sample_btn.click(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
     
     # Backend initialization handler
-    init_btn.click(initialize_backend_ui, outputs=[status_display])
+    init_btn.click(initialize_backend_sync, outputs=[status_display])
     
     submit_btn.click(
         chat_with_mentor,
