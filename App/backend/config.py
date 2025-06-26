@@ -21,6 +21,18 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3:14b"
     ollama_temperature: float = 0.0
     
+    # RAG Pipeline Settings
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+    
+    # Documentation URLs for knowledge base
+    gpu_docs_urls: list = [
+        "https://docs.nvidia.com/cuda/cuda-c-programming-guide/",
+        "https://docs.rapids.ai/api/cudf/stable/",
+        "https://cupy.dev/en/stable/",
+    ]
+    
     # Sol Environment Settings
     sol_work_dir: str = "/tmp/gpu_mentor"
     sol_modules_script: str = """

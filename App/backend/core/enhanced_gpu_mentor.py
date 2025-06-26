@@ -10,10 +10,37 @@ import contextlib
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from .rag_pipeline import RAGPipeline
-from .benchmark_engine import BenchmarkEngine
-from .code_optimizer import CodeOptimizer
-from ..config import settings
+try:
+    from .rag_pipeline import RAGPipeline
+    from .benchmark_engine import BenchmarkEngine
+    from .code_optimizer import CodeOptimizer
+    from ..config import settings
+except ImportError:
+    # Fallback for direct module execution
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        from core.rag_pipeline import RAGPipeline
+        from core.benchmark_engine import BenchmarkEngine
+        from core.code_optimizer import CodeOptimizer
+        from config import settings
+    except ImportError:
+        # Create default settings if config is not available
+        class DefaultSettings:
+            OLLAMA_BASE_URL = "http://localhost:11434"
+            OLLAMA_MODEL = "llama2"
+            CHROMADB_PATH = "./chromadb"
+            TEMP_DIR = "./temp"
+            ollama_base_url = "http://localhost:11434"
+            ollama_model = "llama2"
+            ollama_temperature = 0.0
+        settings = DefaultSettings()
+        
+        # Import the classes directly if relative imports fail
+        from rag_pipeline import RAGPipeline
+        from benchmark_engine import BenchmarkEngine
+        from code_optimizer import CodeOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +51,16 @@ class EnhancedGPUMentor:
     Integrates code input directly with LLM for comprehensive responses.
     """
     
-    def __init__(self, rag_pipeline: RAGPipeline, benchmark_engine: BenchmarkEngine, code_optimizer: CodeOptimizer):
-        self.rag_pipeline = rag_pipeline
-        self.benchmark_engine = benchmark_engine
-        self.code_optimizer = code_optimizer
+    def __init__(self, rag_pipeline: Optional[RAGPipeline] = None, 
+                 benchmark_engine: Optional[BenchmarkEngine] = None, 
+                 code_optimizer: Optional[CodeOptimizer] = None):
+        """
+        Initialize Enhanced GPU Mentor with optional components.
+        If components are not provided, they will be created with default settings.
+        """
+        self.rag_pipeline = rag_pipeline or RAGPipeline()
+        self.benchmark_engine = benchmark_engine or BenchmarkEngine()
+        self.code_optimizer = code_optimizer or CodeOptimizer()
         self.conversation_history = []
         self.code_execution_results = []
     

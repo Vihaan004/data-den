@@ -65,8 +65,33 @@ DEFAULT_GPU_TYPE = "a100"  # Check available GPU types
 
 ## 4. Basic Functionality Tests
 
-### Test 1: Import Verification
-Create `test_imports.py`:
+### Test 1: Import Verification (Fixed Version)
+Create `test_imports_fixed.py` (addresses relative import issues):
+```python
+#!/usr/bin/env python3
+"""Fixed import test for Sol - addresses relative import issues"""
+
+import sys
+import os
+
+# Ensure the backend directory is in the path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+def test_fixed_imports():
+    # Test with proper path setup and fallback imports
+    # (Full implementation provided in test_imports_fixed.py)
+```
+
+Run the fixed test:
+```bash
+python test_imports_fixed.py
+```
+
+### Test 1 (Alternative): Original Import Test
+If you encounter "attempted relative import beyond top-level package" errors,
+use the fixed version above. The original test is available for comparison:
 ```python
 #!/usr/bin/env python3
 """Test all imports on Sol"""
@@ -146,10 +171,39 @@ if __name__ == "__main__":
     test_component_init()
 ```
 
-## 5. SLURM Job Testing
+### SLURM Job Testing (Fixed Version)
 
-### Create SLURM Test Script
-Create `test_job.slurm`:
+### Create Fixed SLURM Test Script
+Create `test_job_fixed.slurm` (addresses import issues):
+```bash
+#!/bin/bash
+#SBATCH --job-name=gpu_mentor_fixed_test
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=00:30:00
+#SBATCH --output=gpu_mentor_fixed_test_%j.out
+#SBATCH --error=gpu_mentor_fixed_test_%j.err
+
+# Load modules
+module load genai25.06
+
+# Set proper Python path
+export PYTHONPATH=$PWD:$PYTHONPATH
+
+# Run fixed tests
+python test_imports_fixed.py
+python test_components.py
+```
+
+Submit the fixed job:
+```bash
+sbatch test_job_fixed.slurm
+```
+
+### Original SLURM Job (for comparison)
+The original `test_job.slurm` is available for comparison:
 ```bash
 #!/bin/bash
 #SBATCH --job-name=gpu_mentor_test

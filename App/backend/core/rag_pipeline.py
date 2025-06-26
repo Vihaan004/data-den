@@ -22,7 +22,32 @@ from pydantic import BaseModel, Field
 import socket
 import re
 
-from ..config import settings
+try:
+    from ..config import settings
+except ImportError:
+    # Fallback for direct module execution
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        from config import settings
+    except ImportError:
+        # Create default settings if config is not available
+        class DefaultSettings:
+            OLLAMA_BASE_URL = "http://localhost:11434"
+            OLLAMA_MODEL = "llama2"
+            CHROMADB_PATH = "./chromadb"
+            TEMP_DIR = "./temp"
+            ollama_base_url = "http://localhost:11434"
+            ollama_model = "llama2"
+            ollama_temperature = 0.0
+            embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+            chunk_size = 1000
+            chunk_overlap = 200
+            gpu_docs_urls = []
+            notebook_dir = "../python_notebooks"
+            notebook_files = []
+        settings = DefaultSettings()
 
 logger = logging.getLogger(__name__)
 
@@ -212,9 +237,9 @@ class RAGPipeline:
             host_node = socket.gethostname()
             base_url = settings.ollama_base_url.replace("localhost", host_node)
             
-            from langchain.chat_models import init_chat_model
-            self.llm_model = init_chat_model(
-                f"ollama:{settings.ollama_model}",
+            # Use ChatOllama directly instead of init_chat_model
+            self.llm_model = ChatOllama(
+                model=settings.ollama_model,
                 temperature=settings.ollama_temperature,
                 base_url=base_url
             )
