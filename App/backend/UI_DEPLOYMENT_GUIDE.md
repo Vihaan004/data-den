@@ -4,6 +4,48 @@
 
 Your GPU Mentor backend has successfully passed all tests on Sol and is ready for frontend integration. Here are your options:
 
+## ⚠️ **Initialization Requirements**
+
+### **CRITICAL: Backend Must Be Initialized First**
+
+Before using any UI, the RAG pipeline must be initialized. You'll see this error if not initialized:
+```
+"RAG pipeline not initialized. Call initialize() first."
+```
+
+### **Initialization Methods:**
+
+**Method 1: Standalone Script (Recommended)**
+```bash
+# Run this BEFORE starting any UI
+python initialize_backend.py
+```
+
+**Method 2: Quick Start Menu**
+```bash
+./quick_start.sh
+# Select option 1: "Initialize Backend Only"
+```
+
+**Method 3: Via Gradio UI**
+1. Start UI: `python gradio_ui.py`
+2. Look for backend status at top of page
+3. If showing "❌ Backend Status: Not initialized", click "🔄 Initialize Backend"
+4. Wait for "✅ Backend Status: Successfully initialized and ready"
+
+**Method 4: Programmatic (for custom integrations)**
+```python
+from core.enhanced_gpu_mentor import EnhancedGPUMentor
+import asyncio
+
+async def main():
+    mentor = EnhancedGPUMentor()
+    await mentor.initialize()  # Must call this!
+    # Now ready to use...
+
+asyncio.run(main())
+```
+
 ## 🎯 **UI Options Available**
 
 ### **Option 1: Gradio Web UI (Recommended for Quick Testing)**

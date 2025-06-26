@@ -77,11 +77,37 @@ class EnhancedGPUMentor:
         self.code_optimizer = code_optimizer or CodeOptimizer()
         self.conversation_history = []
         self.code_execution_results = []
+        self._initialized = False
+    
+    async def initialize(self) -> None:
+        """
+        Initialize the Enhanced GPU Mentor components, including RAG pipeline.
+        Must be called before using the mentor for processing requests.
+        """
+        if self._initialized:
+            return
+            
+        logger.info("Initializing Enhanced GPU Mentor...")
+        try:
+            # Initialize RAG pipeline
+            await self.rag_pipeline.initialize()
+            self._initialized = True
+            logger.info("Enhanced GPU Mentor initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Enhanced GPU Mentor: {e}")
+            raise
+    
+    def _check_initialized(self) -> None:
+        """Check if the mentor has been initialized and raise error if not."""
+        if not self._initialized:
+            raise RuntimeError("RAG pipeline not initialized. Call initialize() first.")
     
     async def process_user_input(self, user_input: str, code: Optional[str] = None) -> Dict[str, Any]:
         """
         Process user input with optional code, feeding both to LLM for integrated response.
         """
+        # Check if initialized
+        self._check_initialized()
         
         response = {
             "text_response": "",

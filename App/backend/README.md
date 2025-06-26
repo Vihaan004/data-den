@@ -48,6 +48,35 @@ App/backend/
 ### 1. Environment Setup on Sol
 
 ```bash
+# Load the GenAI kernel
+module load genai25.06
+
+# Navigate to backend directory
+cd App/backend/
+```
+
+### 2. Backend Initialization (REQUIRED)
+
+**⚠️ IMPORTANT**: The RAG pipeline must be initialized before use. Choose one method:
+
+#### Option A: Interactive Initialization Script
+```bash
+python initialize_backend.py
+```
+
+#### Option B: Quick Start Menu
+```bash
+chmod +x quick_start.sh
+./quick_start.sh
+# Select option 1: "Initialize Backend Only"
+```
+
+#### Option C: Initialize from Gradio UI
+1. Start the UI normally: `python gradio_ui.py`
+2. Click the "🔄 Initialize Backend" button in the UI
+3. Wait for "✅ Backend Status: Successfully initialized and ready"
+
+### 3. Launch Options
 # Load required modules
 module load python/3.11 anaconda3 cuda/12.1
 
@@ -118,6 +147,9 @@ from core.code_optimizer import CodeOptimizer
 print('✅ All imports successful')
 "
 
+# Test initialization (REQUIRED)
+python initialize_backend.py
+
 # Test Sol SLURM integration
 python -c "
 from core.sol_executor import SolCodeExecutor
@@ -125,6 +157,20 @@ executor = SolCodeExecutor()
 print('✅ Sol executor initialized')
 "
 ```
+
+## ⚠️ Important Notes
+
+### RAG Pipeline Initialization
+- **MUST call `initialize()` before using EnhancedGPUMentor**
+- Initialization sets up document loading, vector store, and LLM components
+- Can be done via script, UI button, or programmatically
+- Only needs to be done once per session
+
+### Error Resolution
+If you see "RAG pipeline not initialized. Call initialize() first.":
+1. Run `python initialize_backend.py` from backend directory
+2. OR click "🔄 Initialize Backend" button in Gradio UI
+3. OR ensure your code calls `await gpu_mentor.initialize()` before use
 
 ## 🔧 Configuration
 

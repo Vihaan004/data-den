@@ -42,15 +42,23 @@ echo ""
 
 # Choice menu
 echo "🎯 Choose deployment option:"
-echo "   1) Quick Test (Interactive - 30 minutes)"
-echo "   2) SLURM Job (Background - 4 hours)"
-echo "   3) FastAPI Server (Production)"
+echo "   1) Initialize Backend Only"
+echo "   2) Quick Test (Interactive - 30 minutes)"
+echo "   3) SLURM Job (Background - 4 hours)"
+echo "   4) FastAPI Server (Production)"
 echo ""
 
-read -p "Enter choice (1-3): " choice
+read -p "Enter choice (1-4): " choice
 
 case $choice in
     1)
+        echo "🔄 Initializing GPU Mentor backend..."
+        python initialize_backend.py
+        echo ""
+        echo "✅ Backend initialization completed!"
+        echo "   You can now run: python gradio_ui.py"
+        ;;
+    2)
         echo "🚀 Starting interactive Gradio UI..."
         echo ""
         echo "📡 Access Instructions:"
@@ -62,7 +70,7 @@ case $choice in
         sleep 5
         python gradio_ui.py
         ;;
-    2)
+    3)
         echo "📋 Submitting SLURM job..."
         sbatch start_ui.slurm
         echo ""
@@ -70,7 +78,7 @@ case $choice in
         echo "   squeue -u \$USER"
         echo "   tail -f gpu_mentor_ui_*.out"
         ;;
-    3)
+    4)
         echo "🌐 Starting FastAPI server..."
         echo ""
         echo "📡 Access at: http://$NODE_NAME:8000"
@@ -79,7 +87,7 @@ case $choice in
         python fastapi_ui.py
         ;;
     *)
-        echo "❌ Invalid choice. Please run again and select 1, 2, or 3."
+        echo "❌ Invalid choice. Please run again and select 1, 2, 3, or 4."
         exit 1
         ;;
 esac

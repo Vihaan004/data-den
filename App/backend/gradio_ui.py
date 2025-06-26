@@ -18,19 +18,37 @@ from utils.educational_content import EducationalContentEnhancer
 from utils.performance_visualizer import PerformanceVisualizer
 
 # Initialize all components
-try:
-    gpu_mentor = EnhancedGPUMentor()
-    benchmark_engine = BenchmarkEngine()
-    sample_library = SampleCodeLibrary()
-    content_enhancer = EducationalContentEnhancer()
-    perf_visualizer = PerformanceVisualizer()
-    print("✅ Enhanced GPU Mentor backend initialized successfully")
-except Exception as e:
-    print(f"❌ Failed to initialize backend: {e}")
-    gpu_mentor = None
-    benchmark_engine = None
-    content_enhancer = None
-    perf_visualizer = None
+import asyncio
+
+async def initialize_backend():
+    """Initialize all backend components asynchronously."""
+    global gpu_mentor, benchmark_engine, sample_library, content_enhancer, perf_visualizer
+    try:
+        print("🚀 Initializing Enhanced GPU Mentor backend...")
+        gpu_mentor = EnhancedGPUMentor()
+        await gpu_mentor.initialize()  # Initialize RAG pipeline
+        
+        benchmark_engine = BenchmarkEngine()
+        sample_library = SampleCodeLibrary()
+        content_enhancer = EducationalContentEnhancer()
+        perf_visualizer = PerformanceVisualizer()
+        print("✅ Enhanced GPU Mentor backend initialized successfully")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to initialize backend: {e}")
+        gpu_mentor = None
+        benchmark_engine = None
+        sample_library = None
+        content_enhancer = None
+        perf_visualizer = None
+        return False
+
+# Initialize components
+gpu_mentor = None
+benchmark_engine = None
+sample_library = None
+content_enhancer = None
+perf_visualizer = None
 
 # Sample code examples for quick testing
 sample_codes = {
@@ -118,6 +136,25 @@ print(f"Processed {len(data)} rows")
 print(f"Final result shape: {final_result.shape}")
 print(f"Average result: {np.mean(final_result):.4f}")'''
 }
+
+def check_backend_status():
+    """Check and return the current backend initialization status."""
+    global gpu_mentor
+    if gpu_mentor is not None and hasattr(gpu_mentor, '_initialized') and gpu_mentor._initialized:
+        return "✅ **Backend Status**: Initialized and ready"
+    else:
+        return "❌ **Backend Status**: Not initialized - click 'Initialize Backend' to set up"
+
+async def initialize_backend_ui():
+    """Initialize backend from UI button click."""
+    try:
+        success = await initialize_backend()
+        if success:
+            return "✅ **Backend Status**: Successfully initialized and ready"
+        else:
+            return "❌ **Backend Status**: Initialization failed - check console for details"
+    except Exception as e:
+        return f"❌ **Backend Status**: Initialization error - {str(e)}"
 
 def chat_with_mentor(message, code, chat_history):
     """Handle chat interactions with the GPU Mentor - integrates code with LLM."""
@@ -521,6 +558,13 @@ with gr.Blocks(title="GPU Mentor - Enhanced AI Tutor", theme=gr.themes.Soft()) a
     
     gr.Markdown("# 🚀 Enhanced GPU Mentor: AI Tutor with Integrated Code Execution")
     
+    # Backend status and initialization
+    with gr.Row():
+        with gr.Column(scale=3):
+            status_display = gr.Markdown(check_backend_status())
+        with gr.Column(scale=1):
+            init_btn = gr.Button("🔄 Initialize Backend", variant="secondary")
+    
     with gr.Tabs():
         
         # Features Tab (moved from main interface)
@@ -740,6 +784,9 @@ Select a category, benchmark, and problem size from the left panel, then click *
     sample_dropdown.change(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
     load_sample_btn.click(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
     
+    # Backend initialization handler
+    init_btn.click(initialize_backend_ui, outputs=[status_display])
+    
     submit_btn.click(
         chat_with_mentor,
         inputs=[message_input, code_input, chatbot],
@@ -812,6 +859,14 @@ Select a category, benchmark, and problem size from the left panel, then click *
         )
 
 if __name__ == "__main__":
+    # Initialize backend before launching
+    print("🔄 Starting GPU Mentor initialization...")
+    initialization_success = asyncio.run(initialize_backend())
+    
+    if not initialization_success:
+        print("⚠️  Backend initialization failed, but launching UI anyway...")
+        print("   Some features may not work properly until backend is initialized.")
+    
     # Launch the enhanced interface
     # demo.launch(
     #     server_name="0.0.0.0",  # Allow external access on Sol
