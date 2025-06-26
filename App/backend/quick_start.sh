@@ -43,12 +43,13 @@ echo ""
 # Choice menu
 echo "🎯 Choose deployment option:"
 echo "   1) Initialize Backend Only"
-echo "   2) Quick Test (Interactive - 30 minutes)"
-echo "   3) SLURM Job (Background - 4 hours)"
-echo "   4) FastAPI Server (Production)"
+echo "   2) Simple UI (Recommended - port 7861)"
+echo "   3) Full UI (Advanced - port 7860)"
+echo "   4) SLURM Job (Background - 4 hours)"
+echo "   5) FastAPI Server (Production)"
 echo ""
 
-read -p "Enter choice (1-4): " choice
+read -p "Enter choice (1-5): " choice
 
 case $choice in
     1)
@@ -59,7 +60,19 @@ case $choice in
         echo "   You can now run: python gradio_ui.py"
         ;;
     2)
-        echo "🚀 Starting interactive Gradio UI..."
+        echo "🚀 Starting Simple Gradio UI (recommended)..."
+        echo ""
+        echo "📡 Access Instructions:"
+        echo "   1. From your local machine, run:"
+        echo "      ssh -L 7861:$NODE_NAME:7861 \$USER@sol.asu.edu"
+        echo "   2. Open browser to: http://localhost:7861"
+        echo ""
+        echo "⏰ Starting in 5 seconds... (Ctrl+C to cancel)"
+        sleep 5
+        python gradio_ui_simple.py
+        ;;
+    3)
+        echo "🚀 Starting Full Gradio UI..."
         echo ""
         echo "📡 Access Instructions:"
         echo "   1. From your local machine, run:"
@@ -70,7 +83,7 @@ case $choice in
         sleep 5
         python gradio_ui.py
         ;;
-    3)
+    4)
         echo "📋 Submitting SLURM job..."
         sbatch start_ui.slurm
         echo ""
@@ -78,7 +91,7 @@ case $choice in
         echo "   squeue -u \$USER"
         echo "   tail -f gpu_mentor_ui_*.out"
         ;;
-    4)
+    5)
         echo "🌐 Starting FastAPI server..."
         echo ""
         echo "📡 Access at: http://$NODE_NAME:8000"
@@ -87,7 +100,7 @@ case $choice in
         python fastapi_ui.py
         ;;
     *)
-        echo "❌ Invalid choice. Please run again and select 1, 2, 3, or 4."
+        echo "❌ Invalid choice. Please run again and select 1, 2, 3, 4, or 5."
         exit 1
         ;;
 esac

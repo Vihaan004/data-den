@@ -43,12 +43,16 @@ ollama pull qwen2:14b
 
 **Solutions**:
 ```bash
-# Restart the Gradio UI
+# Option A: Use Simple UI (recommended)
+python gradio_ui_simple.py  # Port 7861
+
+# Option B: Restart the Gradio UI
 pkill -f gradio_ui.py
 python gradio_ui.py
 
-# Or use different launch method
-python gradio_ui.py --server-name 0.0.0.0 --server-port 7860
+# Option C: Use quick start menu
+./quick_start.sh
+# Select option 2: "Simple UI (Recommended)"
 ```
 
 ### 4. Import Errors

@@ -194,8 +194,7 @@ def chat_with_mentor(message, code, chat_history):
         error_msg = "❌ GPU Mentor backend not initialized"
         if chat_history is None:
             chat_history = []
-        chat_history.append({"role": "user", "content": message})
-        chat_history.append({"role": "assistant", "content": error_msg})
+        chat_history.append([message, error_msg])
         return "", "", chat_history, None, ""
     
     try:
@@ -280,7 +279,7 @@ def chat_with_mentor(message, code, chat_history):
             for i, question in enumerate(response["socratic_questions"], 1):
                 formatted_response += f"{i}. {question}\n"
         
-        # Update chat history
+        # Update chat history (using simple list format instead of messages)
         if chat_history is None:
             chat_history = []
         
@@ -289,8 +288,8 @@ def chat_with_mentor(message, code, chat_history):
         if code and code.strip():
             user_message += f"\n\n```python\n{code}\n```"
         
-        chat_history.append({"role": "user", "content": user_message})
-        chat_history.append({"role": "assistant", "content": formatted_response})
+        # Use simple list format: [[user_msg, bot_msg], ...]
+        chat_history.append([user_message, formatted_response])
         
         return "", "", chat_history, response.get("code_output"), response.get("optimized_code", "")
         
@@ -300,8 +299,7 @@ def chat_with_mentor(message, code, chat_history):
         traceback.print_exc()
         if chat_history is None:
             chat_history = []
-        chat_history.append({"role": "user", "content": message})
-        chat_history.append({"role": "assistant", "content": error_msg})
+        chat_history.append([message, error_msg])
         return "", "", chat_history, None, ""
 
 def analyze_code_only(code):
@@ -625,8 +623,7 @@ with gr.Blocks(title="GPU Mentor - Enhanced AI Tutor", theme=gr.themes.Soft()) a
                 chatbot = gr.Chatbot(
                     label="GPU Mentor Conversation",
                     height=500,
-                    type="messages",
-                    show_copy_button=True
+                    show_copy_button=False  # Disable copy button to avoid streaming issues
                 )
                 
                 # Integrated input area at bottom of conversation
@@ -898,12 +895,25 @@ if __name__ == "__main__":
         print("⚠️  Backend initialization failed, but launching UI anyway...")
         print("   Some features may not work properly until backend is initialized.")
     
-    # Launch the enhanced interface
-    # demo.launch(
-    #     server_name="0.0.0.0",  # Allow external access on Sol
-    #     server_port=7860,
-    #     share=False,  # Don't create public link for security
-    #     debug=True,
-    #     show_error=True
-    # )
-    demo.launch(share=True)
+    # Launch the enhanced interface with explicit configuration
+    try:
+        demo.launch(
+            server_name="0.0.0.0",  # Allow external access
+            server_port=7860,
+            share=False,  # Don't create public link for security
+            debug=False,  # Disable debug mode to reduce streaming issues
+            show_error=False,  # Disable error streaming
+            quiet=True,  # Reduce logging output
+            prevent_thread_lock=False,  # Ensure proper threading
+            show_tips=False,  # Disable tips to reduce UI complexity
+            enable_queue=False  # Disable queue system that can cause issues
+        )
+    except Exception as e:
+        print(f"❌ Failed to launch with full configuration: {e}")
+        print("🔄 Trying simplified launch...")
+        # Fallback to simpler launch
+        demo.launch(
+            server_port=7860,
+            debug=False,
+            quiet=True
+        )
