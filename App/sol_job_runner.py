@@ -30,16 +30,72 @@ class SolJobRunner:
     def __init__(self):
         self.job_dir = Path("/tmp/gpu_mentor_jobs")
         self.job_dir.mkdir(exist_ok=True)
+        self._default_account = None
+        
+    def _get_default_account(self) -> str:
+        """Get the default account to use for job submission."""
+        if self._default_account is not None:
+            return self._default_account
+            
+        try:
+            # Try to get account information from myfairshare
+            result = subprocess.run(
+                ['myfairshare'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                # Parse myfairshare output to find accounts
+                lines = result.stdout.strip().split('\n')
+                research_accounts = []
+                class_accounts = []
+                
+                for line in lines[2:]:  # Skip header lines
+                    if line.strip() and not line.startswith('-'):
+                        parts = line.split()
+                        if len(parts) >= 1:
+                            account = parts[0]
+                            if account.startswith('class_'):
+                                class_accounts.append(account)
+                            else:
+                                research_accounts.append(account)
+                
+                # For general use, prefer research accounts over class accounts
+                # Research accounts typically have public QoS access to htc partition
+                if research_accounts:
+                    self._default_account = research_accounts[0]
+                    print(f"🏷️  Using research account: {self._default_account}")
+                    return self._default_account
+                elif class_accounts:
+                    # If only class accounts available, we need to use general partition
+                    # or explicitly specify public QoS
+                    print(f"⚠️  Only class accounts found: {class_accounts}")
+                    print("   Class accounts may have limited partition access")
+                    self._default_account = None  # Don't specify account, let SLURM decide
+                    return None
+                    
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            print("ℹ️  Could not retrieve account information, using SLURM defaults")
+            pass
+        
+        # Fallback: don't specify account, let SLURM use default
+        self._default_account = None
+        return None
         
     def create_job_script(self, code: str, job_name: str, use_gpu: bool = False) -> str:
         """Create a SLURM job script for code execution."""
         
-        # Determine partition and resources based on GPU usage
+        # Get the appropriate account for job submission
+        account = self._get_default_account()
+        
+        # Determine partition and resources based on GPU usage and account type
         if use_gpu:
             partition = "general"
-            gres = "#SBATCH --gres=gpu:1"
-            qos = "#SBATCH --qos=public"
-            time_limit = "00:30:00"  # 30 minutes for GPU jobs
+            gres = "#SBATCH --gres=gpu:a100:1"
+            qos = "public"
+            time_limit = "00:01:00"  # 1 minute for GPU jobs
             modules = """
 # Load required modules for GPU computing
 module purge
@@ -47,23 +103,35 @@ module load mamba/latest
 module load cuda/12.0
 
 # Activate or create RAPIDS environment
-if mamba info --envs | grep -q 'rapids-22'; then
-    echo "Activating existing RAPIDS environment..."
+if mamba info --envs | grep -q 'rapids-25'; then
+    echo "Activating existing RAPIDS 25.02 environment..."
+    source activate rapids-25
+elif mamba info --envs | grep -q 'rapids-22'; then
+    echo "Activating older RAPIDS 22 environment (consider upgrading)..."
     source activate rapids-22
 else
     echo "RAPIDS environment not found. Please create it first:"
     echo "  module load mamba/latest"
-    echo "  mamba create -n rapids-22 -c rapidsai -c conda-forge -c nvidia rapids=22.12 python=3.9 cudatoolkit=11.8 -y"
+    echo "  mamba create -n rapids-25 -c rapidsai -c conda-forge -c nvidia rapids=25.02 python=3.11 cuda-version=12.0 -y"
     echo "Using base environment with basic packages..."
     source activate base
-    mamba install -c conda-forge numpy pandas scikit-learn -y
+    mamba install -c conda-forge numpy pandas scikit-learn cupy -y
 fi
 """
         else:
-            partition = "htc"  # Use htc for CPU jobs (4-hour limit, faster scheduling)
+            # For CPU jobs, no GPU resources needed
             gres = ""
-            qos = "#SBATCH --qos=public"
-            time_limit = "00:15:00"  # 15 minutes for CPU jobs
+            
+            # For CPU jobs, use htc if we have a research account, general if class account
+            if account and account.startswith('class_'):
+                partition = "general"  # Class accounts may not have htc access
+                qos = "class"  # Use class QoS for class accounts
+                time_limit = "00:05:00"  # General partition allows longer times
+            else:
+                partition = "htc"  # Research accounts can use htc partition
+                qos = "public"  # Use public QoS for research accounts
+                time_limit = "00:2:00"  # htc partition has 4-hour limit
+                
             modules = """
 # Load required modules for CPU computing
 module purge
@@ -83,11 +151,15 @@ else
 fi
 """
         
+        # Build account line - only include if we have a specific account
+        account_line = f"#SBATCH --account={account}" if account else ""
+        
         # Create the job script with timing
         job_script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
 #SBATCH --partition={partition}
-{qos}
+#SBATCH --qos={qos}
+{account_line}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
@@ -194,8 +266,16 @@ echo "======================================================"
         gpu_indicators = ['cupy', 'cudf', 'cuml', 'cp.', 'rapids', 'gpu', 'cuda', 'torch.cuda', 'tensorflow-gpu']
         use_gpu = any(lib in code.lower() for lib in gpu_indicators)
         
-        # Determine partition based on GPU usage
-        partition = "general" if use_gpu else "htc"
+        # Determine partition based on GPU usage and account type
+        account = self._get_default_account()
+        if use_gpu:
+            partition = "general"
+        else:
+            # For CPU jobs, use htc if we have a research account, general if class account
+            if account and account.startswith('class_'):
+                partition = "general"  # Class accounts may not have htc access
+            else:
+                partition = "htc"  # Research accounts can use htc partition
         
         # Create job script
         job_script = self.create_job_script(code, job_name, use_gpu)
