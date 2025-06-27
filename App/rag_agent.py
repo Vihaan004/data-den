@@ -214,7 +214,32 @@ class RAGAgent:
         """Classify the type of query to determine appropriate handling."""
         question_lower = question.lower().strip()
         
-        # GPU/technical patterns - Check for GPU-specific questions FIRST
+        # Check if question contains code blocks - these should be analyzed
+        if "```" in question:
+            return "gpu_question"
+        
+        # Check for code analysis patterns - these need LLM analysis
+        code_analysis_patterns = [
+            r'what does this code do',
+            r'explain this code',
+            r'analyze.*code',
+            r'what is this code',
+            r'how does this code work',
+            r'what does.*code.*do',
+            r'code.*analyze',
+            r'analyze.*python',
+            r'optimize.*code',
+            r'accelerate.*code',
+            r'make.*code.*faster',
+            r'gpu.*code',
+            r'convert.*code'
+        ]
+        
+        for pattern in code_analysis_patterns:
+            if re.search(pattern, question_lower):
+                return "gpu_question"
+        
+        # GPU/technical patterns - Check for GPU-specific questions
         gpu_patterns = [
             r'\bgpu acceleration\b',
             r'\bcuda programming\b',
@@ -239,13 +264,8 @@ class RAGAgent:
             if re.search(pattern, question_lower):
                 return "gpu_question"
         
-        # If question contains code blocks with GPU libraries, treat as technical
-        if "```" in question and any(lib in question.lower() for lib in ['cupy', 'cudf', 'cuml', 'rapids']):
-            return "gpu_question"
-        
         # If question mentions specific code optimization with CPU libraries, could be GPU-related
-        if any(phrase in question_lower for phrase in ['optimize this code', 'accelerate this code', 'make this faster']) and \
-           any(lib in question for lib in ['numpy', 'pandas', 'sklearn']):
+        if any(lib in question for lib in ['numpy', 'pandas', 'sklearn', 'np.', 'pd.', 'matmul', 'dot(']):
             return "gpu_question"
         
         # Everything else should be general chat - don't use GPU docs for general questions
@@ -294,7 +314,18 @@ I can analyze your code, suggest optimizations, and help you learn GPU accelerat
 Just paste your Python code or ask me questions about GPU acceleration!"""
         
         elif any(phrase in question_lower for phrase in ['what does this code do', 'explain this code', 'what is this']):
-            return """I'd be happy to explain code for you! However, I don't see any code in your message. 
+            # Check if there's code in the question itself
+            if "```" in question or any(lib in question for lib in ['import ', 'numpy', 'pandas', 'sklearn', 'np.', 'pd.']):
+                # This is actually a code analysis request, not general chat
+                return f"""I can see you're asking about code! However, it looks like your question contains code that needs analysis.
+
+For the best code analysis, please either:
+1. Use the "Code Analysis & Optimization" tab for detailed analysis
+2. Make sure both your question and code are properly formatted
+
+I specialize in analyzing Python code for GPU acceleration opportunities using NVIDIA Rapids libraries. Would you like me to analyze specific code for optimization?"""
+            else:
+                return """I'd be happy to explain code for you! However, I don't see any code in your message. 
 
 Please paste the Python code you'd like me to explain, and I'll:
 - Describe what the code does step by step
