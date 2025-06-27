@@ -214,7 +214,7 @@ print(f"Labels shape: {labels.shape}")"""
                 with gr.Row(elem_classes=["button-bar"]):
                     analysis_sample_dropdown = gr.Dropdown(
                         choices=list(sample_codes.keys()),
-                        # label="📋 Sample Code",
+                        label=None,
                         interactive=True,
                         scale=2,
                         elem_classes=["sample-dropdown"]
