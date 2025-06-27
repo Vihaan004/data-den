@@ -154,14 +154,33 @@ Focus on practical GPU acceleration techniques."""
             return "No code provided for analysis.", ""
         
         try:
-            # Analyze code
+            # First get LLM analysis of the specific code
+            llm_analysis_prompt = f"""Please analyze the following Python code for GPU acceleration opportunities:
+
+```python
+{code}
+```
+
+Provide:
+1. Detailed analysis of the current code and its GPU acceleration potential
+2. Specific optimizations using NVIDIA Rapids libraries (CuPy for NumPy, cuDF for Pandas, cuML for scikit-learn)
+3. Optimized version of the code with explanations
+4. Expected performance improvements
+5. Best practices for GPU optimization
+
+Focus on this specific code and provide practical, actionable recommendations."""
+            
+            # Get LLM response for the specific code
+            llm_response = self.rag_agent.query(llm_analysis_prompt)
+            
+            # Also get technical analysis
             analysis = self.code_optimizer.analyze_code(code)
             
             # Generate optimized code
             optimized_code = self.code_optimizer.suggest_optimizations(code)
             
-            # Format analysis results
-            analysis_text = self._format_analysis_results(analysis, code)
+            # Combine LLM analysis with technical analysis
+            analysis_text = self._format_analysis_results_with_llm(analysis, code, llm_response)
             
             return analysis_text, optimized_code
             
@@ -173,6 +192,55 @@ Focus on practical GPU acceleration techniques."""
         results = []
         
         results.append("## 🔍 Code Analysis Results\n")
+        
+        if analysis.get("libraries_detected"):
+            results.append(f"**Libraries Detected:** {', '.join(analysis['libraries_detected'])}")
+        
+        if analysis.get("estimated_speedup", 1.0) > 1:
+            speedup = analysis["estimated_speedup"]
+            results.append(f"**Estimated GPU Speedup:** {speedup:.1f}x")
+        
+        if analysis.get("gpu_suitable"):
+            results.append("**GPU Suitability:** ✅ Well-suited for GPU acceleration")
+        else:
+            results.append("**GPU Suitability:** ⚠️ Limited GPU acceleration benefits")
+        
+        if analysis.get("optimization_opportunities"):
+            results.append("\n**Optimization Opportunities:**")
+            for opp in analysis["optimization_opportunities"]:
+                results.append(f"• {opp}")
+        
+        if analysis.get("recommendations"):
+            results.append("\n**Recommendations:**")
+            for rec in analysis["recommendations"]:
+                results.append(f"• {rec}")
+        
+        # Execute original code and show timing
+        try:
+            execution_result = self.code_optimizer.execute_code_safely(original_code)
+            if execution_result["status"] == "success":
+                results.append(f"\n**Original Code Execution:**")
+                results.append(f"• Execution time: {execution_result['execution_time']:.4f}s")
+                if execution_result.get("stdout"):
+                    results.append(f"• Output: {execution_result['stdout'][:200]}...")
+        except Exception as e:
+            results.append(f"\n**Execution Error:** {str(e)}")
+        
+        return "\n".join(results)
+    
+    def _format_analysis_results_with_llm(self, analysis: Dict[str, Any], original_code: str, llm_response: str) -> str:
+        """Format analysis results including LLM analysis for display."""
+        results = []
+        
+        results.append("## 🔍 Code Analysis Results\n")
+        
+        # Add LLM analysis first
+        results.append("### 🤖 AI Analysis & Recommendations")
+        results.append(llm_response)
+        results.append("")
+        
+        # Add technical analysis
+        results.append("### 📊 Technical Analysis")
         
         if analysis.get("libraries_detected"):
             results.append(f"**Libraries Detected:** {', '.join(analysis['libraries_detected'])}")
