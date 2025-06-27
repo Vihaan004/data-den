@@ -12,6 +12,8 @@ source activate genai25.06
 echo "🦙 Loading Ollama..."
 module load ollama/0.9.0
 
+export OLLAMA_MODELS=/data/datasets/community/ollama
+
 echo "🚀 Starting Ollama..."
 ollama-start
 
