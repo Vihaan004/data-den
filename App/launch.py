@@ -88,11 +88,10 @@ def main():
         app = GPUMentorApp()
         print("🎉 Application ready! Opening in your browser...")
         
-        # Launch with proper error handling
+        # Launch with proper error handling - let Gradio find an available port
         app.launch(
             share=True,
             server_name="0.0.0.0",
-            server_port=7860,
             quiet=False,
             show_error=True,
             inbrowser=False  # Don't auto-open browser to avoid issues

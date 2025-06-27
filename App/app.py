@@ -247,11 +247,10 @@ print(f"Labels shape: {labels.shape}")"""
         """Launch the application with proper shutdown handling."""
         interface = self.create_interface()
         
-        # Set default parameters for better control
+        # Set default parameters for better control - let Gradio find an available port
         launch_params = {
             'share': share,
             'server_name': '0.0.0.0',
-            'server_port': 7860,
             'quiet': False,
             'show_error': True,
             'inbrowser': False,
