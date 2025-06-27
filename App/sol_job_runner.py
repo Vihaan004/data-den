@@ -2,6 +2,18 @@
 """
 Sol Supercomputer Job Runner for GPU Mentor
 Handles SLURM job submission and execution timing for code comparison
+
+This module provides functionality to:
+1. Generate proper SLURM job scripts for Sol supercomputer
+2. Submit jobs with correct partition and resource requests
+3. Monitor job status and retrieve results
+4. Compare execution times between CPU and GPU code
+
+Follows Sol supercomputer best practices:
+- Uses 'general' partition for GPU jobs, 'htc' for CPU jobs
+- Proper module loading (mamba/latest, cuda/12.0)
+- Uses mamba environments instead of conda
+- Correct resource requests and time limits
 """
 
 import os
@@ -24,49 +36,106 @@ class SolJobRunner:
         
         # Determine partition and resources based on GPU usage
         if use_gpu:
-            partition = "gpu"
+            partition = "general"
             gres = "#SBATCH --gres=gpu:1"
+            qos = "#SBATCH --qos=public"
+            time_limit = "00:30:00"  # 30 minutes for GPU jobs
             modules = """
-module load anaconda3
-module load cuda
-conda activate rapids-env || conda create -n rapids-env python=3.9 -y
-conda activate rapids-env
-conda install -c rapidsai -c conda-forge -c nvidia rapids=23.10 python=3.9 cudatoolkit=11.8 -y
+# Load required modules for GPU computing
+module purge
+module load mamba/latest
+module load cuda/12.0
+
+# Activate or create RAPIDS environment
+if mamba info --envs | grep -q 'rapids-22'; then
+    echo "Activating existing RAPIDS environment..."
+    source activate rapids-22
+else
+    echo "RAPIDS environment not found. Please create it first:"
+    echo "  module load mamba/latest"
+    echo "  mamba create -n rapids-22 -c rapidsai -c conda-forge -c nvidia rapids=22.12 python=3.9 cudatoolkit=11.8 -y"
+    echo "Using base environment with basic packages..."
+    source activate base
+    mamba install -c conda-forge numpy pandas scikit-learn -y
+fi
 """
         else:
-            partition = "general"
+            partition = "htc"  # Use htc for CPU jobs (4-hour limit, faster scheduling)
             gres = ""
+            qos = "#SBATCH --qos=public"
+            time_limit = "00:15:00"  # 15 minutes for CPU jobs
             modules = """
-module load anaconda3
-conda activate cpu-env || conda create -n cpu-env python=3.9 -y
-conda activate cpu-env
-conda install numpy pandas scikit-learn -y
+# Load required modules for CPU computing
+module purge
+module load mamba/latest
+
+# Use existing scicomp environment or create CPU environment
+if mamba info --envs | grep -q 'scicomp'; then
+    echo "Activating scicomp environment..."
+    source activate scicomp
+elif mamba info --envs | grep -q 'cpu-env'; then
+    echo "Activating CPU environment..."
+    source activate cpu-env
+else
+    echo "Creating CPU environment..."
+    mamba create -n cpu-env -c conda-forge python=3.9 numpy pandas scikit-learn matplotlib -y
+    source activate cpu-env
+fi
 """
         
         # Create the job script with timing
         job_script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
 #SBATCH --partition={partition}
+{qos}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
-#SBATCH --time=00:10:00
+#SBATCH --time={time_limit}
 {gres}
 #SBATCH --output={self.job_dir}/{job_name}.out
 #SBATCH --error={self.job_dir}/{job_name}.err
 
-# Load modules and activate environment
+# Print job information
+echo "======================================================"
+echo "Job Information:"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Job Name: {job_name}"
+echo "Partition: {partition}"
+echo "Node: $SLURM_NODELIST"
+echo "Working Directory: $PWD"
+echo "======================================================"
+
+# Set error handling
+set -e
+set -u
+
 {modules}
 
-# Create the Python script with timing
+# Verify environment
+echo "======================================================"
+echo "Environment Information:"
+echo "Python version: $(python --version)"
+echo "Python path: $(which python)"
+if command -v nvidia-smi &> /dev/null && [[ "{str(use_gpu).lower()}" == "true" ]]; then
+    echo "GPU Information:"
+    nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits
+fi
+echo "Conda/Mamba environment: $CONDA_DEFAULT_ENV"
+echo "======================================================"
+
+# Create and execute the Python script
+echo "Creating Python script: {job_name}.py"
 cat > {self.job_dir}/{job_name}.py << 'EOF'
 import time
 import sys
 import traceback
+import os
 
 print("="*50)
-print(f"Starting execution: {{job_name}}")
+print(f"Starting execution: {job_name}")
+print(f"Working directory: {{os.getcwd()}}")
 print("="*50)
 
 start_time = time.perf_counter()
@@ -96,9 +165,14 @@ except Exception as e:
     sys.exit(1)
 EOF
 
-# Execute the Python script
+# Change to job directory and execute
 cd {self.job_dir}
+echo "Executing Python script..."
 python {job_name}.py
+
+echo "======================================================"
+echo "Job completed at: $(date)"
+echo "======================================================"
 """
         
         return job_script
@@ -116,8 +190,12 @@ python {job_name}.py
         timestamp = int(time.time())
         job_name = f"gpu_mentor_{job_type}_{timestamp}_{uuid.uuid4().hex[:8]}"
         
-        # Determine if this is a GPU job based on imports
-        use_gpu = any(lib in code.lower() for lib in ['cupy', 'cudf', 'cuml', 'cp.', 'cudf.'])
+        # Determine if this is a GPU job based on imports and libraries
+        gpu_indicators = ['cupy', 'cudf', 'cuml', 'cp.', 'rapids', 'gpu', 'cuda', 'torch.cuda', 'tensorflow-gpu']
+        use_gpu = any(lib in code.lower() for lib in gpu_indicators)
+        
+        # Determine partition based on GPU usage
+        partition = "general" if use_gpu else "htc"
         
         # Create job script
         job_script = self.create_job_script(code, job_name, use_gpu)
@@ -132,6 +210,9 @@ python {job_name}.py
         
         try:
             # Submit job using sbatch
+            print(f"🔧 Submitting job script: {script_path}")
+            print(f"📄 Job type: {'GPU' if use_gpu else 'CPU'} | Partition: {partition}")
+            
             result = subprocess.run(
                 ['sbatch', str(script_path)],
                 capture_output=True,
@@ -140,16 +221,28 @@ python {job_name}.py
             )
             
             if result.returncode == 0:
-                # Extract job ID from sbatch output
-                job_id = result.stdout.strip().split()[-1]
+                # Extract job ID from sbatch output (format: "Submitted batch job XXXXXX")
+                output_lines = result.stdout.strip().split('\n')
+                for line in output_lines:
+                    if 'Submitted batch job' in line:
+                        job_id = line.split()[-1]
+                        print(f"✅ Job submitted successfully with ID: {job_id}")
+                        return job_id, str(script_path)
+                # Fallback: take last word from output
+                job_id = result.stdout.strip().split()[-1] if result.stdout.strip() else "unknown"
+                print(f"✅ Job submitted with ID: {job_id}")
                 return job_id, str(script_path)
             else:
-                raise Exception(f"sbatch failed: {result.stderr}")
+                error_msg = result.stderr.strip() if result.stderr else "Unknown sbatch error"
+                print(f"❌ sbatch failed with return code {result.returncode}")
+                print(f"   Error: {error_msg}")
+                print(f"   Stdout: {result.stdout}")
+                raise Exception(f"sbatch failed (code {result.returncode}): {error_msg}")
                 
         except subprocess.TimeoutExpired:
-            raise Exception("Job submission timed out")
+            raise Exception("Job submission timed out after 30 seconds")
         except FileNotFoundError:
-            raise Exception("SLURM not available - not running on Sol supercomputer")
+            raise Exception("SLURM not available - sbatch command not found. Are you running on Sol supercomputer?")
         except Exception as e:
             raise Exception(f"Job submission failed: {str(e)}")
     
@@ -246,7 +339,9 @@ python {job_name}.py
         # Submit original code job
         try:
             original_job_id, original_script = self.submit_job(original_code, "original")
-            print(f"✅ Original code job submitted: {original_job_id}")
+            # Extract job name from script path
+            original_job_name = Path(original_script).stem
+            print(f"✅ Original code job submitted: {original_job_id} (script: {original_job_name})")
         except Exception as e:
             return {
                 "status": "failed",
@@ -258,7 +353,9 @@ python {job_name}.py
         # Submit optimized code job
         try:
             optimized_job_id, optimized_script = self.submit_job(optimized_code, "optimized")
-            print(f"✅ Optimized code job submitted: {optimized_job_id}")
+            # Extract job name from script path
+            optimized_job_name = Path(optimized_script).stem
+            print(f"✅ Optimized code job submitted: {optimized_job_id} (script: {optimized_job_name})")
         except Exception as e:
             return {}, {
                 "status": "failed",
@@ -296,10 +393,7 @@ python {job_name}.py
             # Wait a bit before checking again
             time.sleep(5)
         
-        # Get results
-        original_job_name = f"gpu_mentor_original_{original_job_id.split('_')[-1] if '_' in original_job_id else original_job_id}"
-        optimized_job_name = f"gpu_mentor_optimized_{optimized_job_id.split('_')[-1] if '_' in optimized_job_id else optimized_job_id}"
-        
+        # Get results using the job names we extracted earlier
         original_result = self.get_job_output(original_job_id, original_job_name)
         optimized_result = self.get_job_output(optimized_job_id, optimized_job_name)
         
