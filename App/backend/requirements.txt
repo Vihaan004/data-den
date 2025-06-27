@@ -1,0 +1,50 @@
+# Core dependencies for GPU Mentor Backend
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+websockets==12.0
+
+# LangChain and RAG dependencies
+langchain==0.1.0
+langchain-community==0.0.13
+langchain-core==0.1.0
+langchain-ollama==0.1.0
+langgraph==0.0.26
+langchain-text-splitters==0.0.1
+langchain-huggingface==0.0.1
+
+# Vector store and embeddings
+sentence-transformers==2.2.2
+transformers==4.36.0
+
+# Document processing
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Data processing and visualization
+pandas==2.1.4
+numpy==1.24.3
+plotly==5.17.0
+gradio==4.8.0
+
+# GPU acceleration libraries (install on Sol)
+# cupy-cuda12x>=12.0.0
+# cudf>=23.08
+# cuml>=23.08
+# dask-cudf>=23.08
+
+# System utilities
+python-multipart==0.0.6
+aiofiles==23.2.1
+python-dotenv==1.0.0
+pathlib2==2.3.7
+
+# Machine learning and scientific computing
+scikit-learn>=1.3.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+isort==5.12.0
