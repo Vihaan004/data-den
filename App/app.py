@@ -162,22 +162,42 @@ print(f"Labels shape: {labels.shape}")"""
             
             with gr.Tab("🔍 Code Analysis & Optimization"):
                 with gr.Row():
-                    with gr.Column():
-                        analyze_code = gr.Textbox(
-                            placeholder="Paste your Python code here for analysis...",
-                            label="Code to Analyze",
-                            lines=15,
-                            max_lines=25
-                        )
+                    with gr.Column(scale=3):
+                        with gr.Row():
+                            analyze_code = gr.Textbox(
+                                placeholder="Paste your Python code here for analysis...",
+                                label="Code to Analyze",
+                                lines=15,
+                                max_lines=25,
+                                scale=4
+                            )
                         
-                        analyze_btn = gr.Button("Analyze Code", variant="primary")
+                        with gr.Row():
+                            analyze_btn = gr.Button("Analyze Code", variant="primary", scale=2)
+                            clear_code_btn = gr.Button("Clear", variant="secondary", scale=1)
+                    
+                    with gr.Column(scale=1):
+                        gr.Markdown("### Sample Code")
+                        analysis_sample_dropdown = gr.Dropdown(
+                            choices=list(sample_codes.keys()),
+                            label="Choose Sample Code",
+                            interactive=True
+                        )
+                        load_analysis_sample_btn = gr.Button("Load Sample", variant="secondary")
+                
+                with gr.Row():
+                    with gr.Column():
+                        analysis_results = gr.Markdown(
+                            label="🧠 AI Analysis & Recommendations",
+                            value="Select code and click 'Analyze Code' to see AI-powered analysis and optimization recommendations."
+                        )
                     
                     with gr.Column():
-                        analysis_results = gr.Markdown(label="Analysis Results")
                         optimized_code = gr.Textbox(
-                            label="Optimized GPU Code",
+                            label="🚀 GPU-Optimized Code",
                             lines=15,
-                            max_lines=25
+                            max_lines=25,
+                            placeholder="Optimized GPU code will appear here after analysis..."
                         )
             
             with gr.Tab("📚 Learning Resources"):
@@ -206,7 +226,10 @@ print(f"Labels shape: {labels.shape}")"""
             def clear_chat():
                 return []
             
-            # Wire up the interface
+            def clear_code():
+                return ""
+            
+            # Wire up the chat interface
             sample_dropdown.change(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
             load_sample_btn.click(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
             
@@ -223,6 +246,11 @@ print(f"Labels shape: {labels.shape}")"""
             )
             
             clear_btn.click(clear_chat, outputs=[chatbot])
+            
+            # Wire up the code analysis interface
+            analysis_sample_dropdown.change(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
+            load_analysis_sample_btn.click(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
+            clear_code_btn.click(clear_code, outputs=[analyze_code])
             
             analyze_btn.click(
                 self.gpu_mentor.analyze_code_only,

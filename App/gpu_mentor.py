@@ -154,38 +154,105 @@ Focus on practical GPU acceleration techniques."""
             return "No code provided for analysis.", ""
         
         try:
-            # First get LLM analysis of the specific code
-            llm_analysis_prompt = f"""Please analyze the following Python code for GPU acceleration opportunities:
+            # Create structured prompt for LLM to provide both analysis and optimized code
+            llm_analysis_prompt = f"""You are GPU Mentor, an expert in NVIDIA Rapids GPU acceleration. Analyze the following Python code and provide GPU optimization recommendations.
 
+**Code to Analyze:**
 ```python
 {code}
 ```
 
-Provide:
-1. Detailed analysis of the current code and its GPU acceleration potential
-2. Specific optimizations using NVIDIA Rapids libraries (CuPy for NumPy, cuDF for Pandas, cuML for scikit-learn)
-3. Optimized version of the code with explanations
-4. Expected performance improvements
-5. Best practices for GPU optimization
+**Instructions:**
+Please provide your response in exactly this format:
 
-Focus on this specific code and provide practical, actionable recommendations."""
+## 🔍 AI Analysis & Recommendations
+
+[Provide detailed analysis here including:
+- What the code does and its current approach
+- Libraries detected and their GPU acceleration potential
+- Specific optimization opportunities
+- Expected performance improvements
+- Memory management considerations
+- Best practices for GPU optimization]
+
+## 🚀 GPU-Optimized Code
+
+```python
+[Provide the complete GPU-optimized version of the code here using:
+- CuPy instead of NumPy
+- cuDF instead of Pandas  
+- cuML instead of scikit-learn
+- Include proper imports and memory management
+- Add comments explaining the optimizations]
+```
+
+## 💡 Optimization Insights
+
+[Explain the specific changes made:
+- Why each optimization was chosen
+- How the GPU libraries work differently
+- Performance implications
+- When to use vs not use GPU acceleration
+- Additional tips for scaling]
+
+Focus on practical, working code that demonstrates clear GPU acceleration benefits."""
             
-            # Get LLM response for the specific code
+            # Get LLM response
             llm_response = self.rag_agent.query(llm_analysis_prompt)
             
-            # Also get technical analysis
-            analysis = self.code_optimizer.analyze_code(code)
-            
-            # Generate optimized code
-            optimized_code = self.code_optimizer.suggest_optimizations(code)
-            
-            # Combine LLM analysis with technical analysis
-            analysis_text = self._format_analysis_results_with_llm(analysis, code, llm_response)
+            # Parse the response to separate analysis from optimized code
+            analysis_text, optimized_code = self._parse_llm_response(llm_response)
             
             return analysis_text, optimized_code
             
         except Exception as e:
-            return f"Error analyzing code: {str(e)}", ""
+            error_msg = f"Error analyzing code: {str(e)}"
+            return error_msg, ""
+    
+    def _parse_llm_response(self, response: str) -> tuple:
+        """Parse LLM response to extract analysis and optimized code."""
+        try:
+            # Split response into sections
+            sections = response.split("## 🚀 GPU-Optimized Code")
+            
+            if len(sections) >= 2:
+                analysis_part = sections[0].strip()
+                
+                # Extract code from the second section
+                code_section = sections[1]
+                
+                # Look for code blocks in the response
+                import re
+                code_blocks = re.findall(r'```python\n(.*?)\n```', code_section, re.DOTALL)
+                
+                if code_blocks:
+                    optimized_code = code_blocks[0].strip()
+                    
+                    # Include insights section in analysis if present
+                    if "## 💡 Optimization Insights" in code_section:
+                        insights_part = code_section.split("## 💡 Optimization Insights")[1].strip()
+                        analysis_part += f"\n\n## 💡 Optimization Insights\n{insights_part}"
+                else:
+                    # If no code block found, try to extract any code
+                    lines = code_section.split('\n')
+                    code_lines = []
+                    in_code = False
+                    for line in lines:
+                        if line.strip().startswith('```'):
+                            in_code = not in_code
+                            continue
+                        if in_code or (line.strip() and not line.startswith('#') and ('import' in line or '=' in line or 'def' in line)):
+                            code_lines.append(line)
+                    optimized_code = '\n'.join(code_lines).strip()
+                
+                return analysis_part, optimized_code
+            else:
+                # If response doesn't have expected structure, return as analysis
+                return response, ""
+                
+        except Exception as e:
+            print(f"Error parsing LLM response: {e}")
+            return response, ""
     
     def _format_analysis_results(self, analysis: Dict[str, Any], original_code: str) -> str:
         """Format analysis results for display."""
