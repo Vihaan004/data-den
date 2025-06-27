@@ -93,9 +93,10 @@ class SolJobRunner:
         # Determine partition and resources based on GPU usage and account type
         if use_gpu:
             partition = "general"
-            gres = "#SBATCH --gres=gpu:a100:1"
+            # gres = "#SBATCH --gres=gpu:a100:1"
+            gres = "#SBATCH -G a100:1"
             qos = "public"
-            time_limit = "00:01:00"  # 1 minute for GPU jobs
+            time_limit = "00:01:00"  # minute for GPU jobs
             modules = """
 # Load required modules for GPU computing
 module purge
