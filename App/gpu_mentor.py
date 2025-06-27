@@ -1,7 +1,8 @@
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import time
 from datetime import datetime
 from langchain_core.messages import HumanMessage
+from sol_job_runner import SolJobRunner
 
 class GPUMentor:
     """Main GPU Mentor class that coordinates RAG agent and code optimization."""
@@ -10,6 +11,7 @@ class GPUMentor:
         self.rag_agent = rag_agent
         self.code_optimizer = code_optimizer
         self.conversation_history = []
+        self.job_runner = SolJobRunner()  # Initialize Sol job runner
         self.execution_results = []
     
     def process_user_input(self, question: str, code: str = "") -> Dict[str, Any]:
@@ -235,6 +237,102 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
             traceback.print_exc()
             error_msg = f"Error analyzing code: {str(e)}"
             return error_msg, ""
+    
+    def run_code_comparison(self, original_code: str, optimized_code: str) -> Tuple[str, str]:
+        """Run both original and optimized code on Sol supercomputer and return results."""
+        if not original_code.strip():
+            return "No original code provided for execution.", "No optimized code to execute."
+        
+        if not optimized_code.strip():
+            return "Original code ready for execution.", "No optimized code available. Please analyze the code first."
+        
+        try:
+            print("🚀 Starting code execution comparison on Sol supercomputer...")
+            
+            # Run both codes on Sol
+            original_result, optimized_result = self.job_runner.run_comparison(original_code, optimized_code)
+            
+            # Format original code results
+            original_output = self._format_execution_result(original_result, "Original CPU Code")
+            
+            # Format optimized code results
+            optimized_output = self._format_execution_result(optimized_result, "GPU-Optimized Code")
+            
+            return original_output, optimized_output
+            
+        except Exception as e:
+            print(f"ERROR in run_code_comparison: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            error_msg = f"Error running code comparison: {str(e)}"
+            return error_msg, error_msg
+    
+    def _format_execution_result(self, result: Dict, code_type: str) -> str:
+        """Format execution result for display."""
+        if not result:
+            return f"**{code_type} - No Results**\n\nExecution not started or failed to submit."
+        
+        status = result.get("status", "unknown")
+        execution_time = result.get("execution_time")
+        stdout = result.get("stdout", "")
+        stderr = result.get("stderr", "")
+        error = result.get("error", "")
+        
+        # Build formatted output
+        output_parts = [f"**🏃‍♂️ {code_type} - Execution Results**\n"]
+        
+        # Status and timing
+        if status == "completed":
+            output_parts.append(f"✅ **Status**: Completed Successfully")
+            if execution_time is not None:
+                output_parts.append(f"⏱️ **Execution Time**: {execution_time:.4f} seconds")
+        elif status == "failed":
+            output_parts.append(f"❌ **Status**: Failed")
+            if execution_time is not None:
+                output_parts.append(f"⏱️ **Time Before Error**: {execution_time:.4f} seconds")
+        else:
+            output_parts.append(f"⏳ **Status**: {status.title()}")
+        
+        output_parts.append("")  # Empty line
+        
+        # Program output
+        if stdout:
+            output_parts.append("**📤 Program Output:**")
+            output_parts.append("```")
+            # Clean up the output to show only the relevant parts
+            lines = stdout.split('\n')
+            relevant_lines = []
+            capture = False
+            
+            for line in lines:
+                if "Starting execution:" in line:
+                    capture = True
+                elif "Execution completed successfully" in line or "Execution failed with error:" in line:
+                    capture = False
+                elif capture and not line.startswith("="):
+                    relevant_lines.append(line)
+            
+            if relevant_lines:
+                output_parts.append('\n'.join(relevant_lines))
+            else:
+                output_parts.append(stdout)
+            output_parts.append("```")
+            output_parts.append("")
+        
+        # Error output
+        if stderr:
+            output_parts.append("**⚠️ Error Output:**")
+            output_parts.append("```")
+            output_parts.append(stderr)
+            output_parts.append("```")
+            output_parts.append("")
+        
+        # Job submission error
+        if error:
+            output_parts.append("**❌ Execution Error:**")
+            output_parts.append(f"```\n{error}\n```")
+        
+        return '\n'.join(output_parts)
     
     def _parse_llm_response(self, response: str) -> tuple:
         """Parse LLM response to extract analysis and optimized code."""

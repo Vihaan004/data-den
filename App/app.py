@@ -127,10 +127,23 @@ print(f"Labels shape: {labels.shape}")"""
             border-radius: 8px;
             padding: 16px;
         }
+        .execution-results {
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+        }
         .code-analysis-tab {
             height: 100vh;
         }
         .code-input-row {
+            margin-bottom: 16px;
+        }
+        .execution-row {
             margin-bottom: 16px;
         }
         .button-bar {
@@ -221,7 +234,24 @@ print(f"Labels shape: {labels.shape}")"""
                     )
                     load_analysis_sample_btn = gr.Button("📥 Load Sample", variant="secondary", scale=1)
                     analyze_btn = gr.Button("🔍 Analyze Code", variant="primary", scale=2)
+                    run_comparison_btn = gr.Button("🏃‍♂️ Run on Sol", variant="primary", scale=2)
                     clear_code_btn = gr.Button("🗑️ Clear", variant="secondary", scale=1)
+                
+                # Execution results row: Show execution outputs below code boxes
+                with gr.Row(elem_classes=["execution-row"]):
+                    with gr.Column(scale=1):
+                        original_execution_output = gr.Markdown(
+                            label="🖥️ Original Code Execution",
+                            value="**Original Code Execution Results**\n\nClick 'Run on Sol' to execute the original code on the Sol supercomputer and see timing results.",
+                            elem_classes=["execution-results"]
+                        )
+                    
+                    with gr.Column(scale=1):
+                        optimized_execution_output = gr.Markdown(
+                            label="🚀 GPU Code Execution", 
+                            value="**GPU-Optimized Code Execution Results**\n\nClick 'Run on Sol' to execute the GPU-optimized code and compare performance.",
+                            elem_classes=["execution-results"]
+                        )
                 
                 # Bottom area: AI insights taking the rest of the space
                 with gr.Row():
@@ -260,6 +290,11 @@ print(f"Labels shape: {labels.shape}")"""
             def clear_code():
                 return ""
             
+            def clear_execution_results():
+                original_msg = "**Original Code Execution Results**\n\nClick 'Run on Sol' to execute the original code on the Sol supercomputer and see timing results."
+                optimized_msg = "**GPU-Optimized Code Execution Results**\n\nClick 'Run on Sol' to execute the GPU-optimized code and compare performance."
+                return original_msg, optimized_msg
+            
             # Wire up the chat interface
             sample_dropdown.change(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
             load_sample_btn.click(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
@@ -282,11 +317,18 @@ print(f"Labels shape: {labels.shape}")"""
             analysis_sample_dropdown.change(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
             load_analysis_sample_btn.click(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
             clear_code_btn.click(clear_code, outputs=[analyze_code])
+            clear_code_btn.click(clear_execution_results, outputs=[original_execution_output, optimized_execution_output])
             
             analyze_btn.click(
                 self.gpu_mentor.analyze_code_only,
                 inputs=[analyze_code],
                 outputs=[analysis_results, optimized_code]
+            )
+            
+            run_comparison_btn.click(
+                self.gpu_mentor.run_code_comparison,
+                inputs=[analyze_code, optimized_code],
+                outputs=[original_execution_output, optimized_execution_output]
             )
             
             generate_tutorial_btn.click(
