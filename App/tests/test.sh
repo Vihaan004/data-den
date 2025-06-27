@@ -5,8 +5,8 @@
 #SBATCH -t 0-00:05:00   # time in d-hh:mm:ss
 #SBATCH -p general      # partition 
 #SBATCH -q public       # QOS
-#SBATCH -o slurm.%j.out # file to save job's STDOUT (%j = JobId)
-#SBATCH -e slurm.%j.err # file to save job's STDERR (%j = JobId)
+#SBATCH -o /home/vpatel69/R1/App/tests/jobs/slurm.%j.out # file to save job's STDOUT (%j = JobId)
+#SBATCH -e /home/vpatel69/R1/App/tests/jobs/slurm.%j.err # file to save job's STDERR (%j = JobId)
 #SBATCH --export=NONE   # Purge the job-submitting shell environment
 
 #Load required software
