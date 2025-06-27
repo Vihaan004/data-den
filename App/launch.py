@@ -8,6 +8,8 @@ This script provides a simple way to launch the GPU Mentor application.
 import sys
 import os
 import subprocess
+import signal
+import atexit
 
 def install_requirements():
     """Install required packages."""
@@ -22,10 +24,22 @@ def install_requirements():
         print(f"❌ Error installing requirements: {e}")
         return False
 
+def signal_handler(signum, frame):
+    """Handle termination signals gracefully."""
+    print(f"\n🛑 Received signal {signum}, shutting down gracefully...")
+    sys.exit(0)
+
 def main():
     """Main launcher function."""
     print("🚀 GPU Mentor Application Launcher")
     print("=" * 40)
+    
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Register cleanup function
+    atexit.register(lambda: print("👋 GPU Mentor application has been shut down."))
     
     # Check if requirements are installed
     try:
@@ -65,20 +79,45 @@ def main():
     
     # Launch the app
     print("\n🌐 Starting GPU Mentor Application...")
+    print("💡 Tip: Use Ctrl+C to stop the application cleanly")
+    
+    app = None
     try:
         # Import and run the app
         from app import GPUMentorApp
         app = GPUMentorApp()
         print("🎉 Application ready! Opening in your browser...")
-        app.launch(share=True)
+        
+        # Launch with proper error handling
+        app.launch(
+            share=True,
+            server_name="0.0.0.0",
+            server_port=7860,
+            quiet=False,
+            show_error=True,
+            inbrowser=False  # Don't auto-open browser to avoid issues
+        )
+        
     except KeyboardInterrupt:
-        print("\n👋 Application stopped by user")
+        print("\n� Keyboard interrupt received (Ctrl+C)")
+        print("�👋 Shutting down GPU Mentor application...")
+        
     except Exception as e:
         print(f"❌ Error starting application: {e}")
         print("\nTroubleshooting:")
         print("1. Make sure all requirements are installed: pip install -r requirements.txt")
         print("2. Start Ollama server: ollama serve")
         print("3. Install Ollama model: ollama pull qwen2.5-coder:14b")
+        
+    finally:
+        # Ensure clean shutdown
+        if app and hasattr(app, 'close'):
+            try:
+                app.close()
+            except:
+                pass
+        print("🔄 Application cleanup complete")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

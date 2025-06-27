@@ -243,10 +243,39 @@ print(f"Labels shape: {labels.shape}")"""
         
         return interface
     
-    def launch(self, share=True):
-        """Launch the application."""
+    def launch(self, share=True, **kwargs):
+        """Launch the application with proper shutdown handling."""
         interface = self.create_interface()
-        interface.launch(share=share)
+        
+        # Set default parameters for better control
+        launch_params = {
+            'share': share,
+            'server_name': '0.0.0.0',
+            'server_port': 7860,
+            'quiet': False,
+            'show_error': True,
+            'inbrowser': False,
+            'prevent_thread_lock': False
+        }
+        
+        # Override with any user-provided parameters
+        launch_params.update(kwargs)
+        
+        try:
+            interface.launch(**launch_params)
+        except KeyboardInterrupt:
+            print("\n🛑 Shutting down Gradio interface...")
+            interface.close()
+            raise
+        except Exception as e:
+            print(f"❌ Error in Gradio interface: {e}")
+            interface.close()
+            raise
+    
+    def close(self):
+        """Close the application gracefully."""
+        print("🔄 Closing GPU Mentor application...")
+        # Add any cleanup code here if needed
 
 if __name__ == "__main__":
     app = GPUMentorApp()
