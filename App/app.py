@@ -117,7 +117,36 @@ print(f"Labels shape: {labels.shape}")"""
         }
         
         # Create interface
-        with gr.Blocks(title="GPU Mentor - AI-Powered GPU Acceleration Assistant", theme=gr.themes.Soft()) as interface:
+        # Custom CSS for better layout
+        custom_css = """
+        .analysis-results {
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .code-analysis-tab {
+            height: 100vh;
+        }
+        .code-input-row {
+            margin-bottom: 16px;
+        }
+        .button-bar {
+            margin: 16px 0;
+            gap: 8px;
+        }
+        .gradio-container {
+            max-width: 100% !important;
+        }
+        """
+        
+        with gr.Blocks(
+            title="GPU Mentor - AI-Powered GPU Acceleration Assistant", 
+            theme=gr.themes.Soft(),
+            css=custom_css
+        ) as interface:
             gr.Markdown("""
             # 🚀 GPU Mentor - AI-Powered GPU Acceleration Assistant
             
@@ -152,7 +181,6 @@ print(f"Labels shape: {labels.shape}")"""
                         clear_btn = gr.Button("Clear Chat", variant="secondary")
                     
                     with gr.Column(scale=1):
-                        gr.Markdown("### Sample Code")
                         sample_dropdown = gr.Dropdown(
                             choices=list(sample_codes.keys()),
                             label="Choose Sample",
@@ -161,44 +189,47 @@ print(f"Labels shape: {labels.shape}")"""
                         load_sample_btn = gr.Button("Load Sample", variant="secondary")
             
             with gr.Tab("🔍 Code Analysis & Optimization"):
-                with gr.Row():
-                    with gr.Column(scale=3):
-                        with gr.Row():
-                            analyze_code = gr.Textbox(
-                                placeholder="Paste your Python code here for analysis...",
-                                label="Code to Analyze",
-                                lines=15,
-                                max_lines=25,
-                                scale=4
-                            )
-                        
-                        with gr.Row():
-                            analyze_btn = gr.Button("Analyze Code", variant="primary", scale=2)
-                            clear_code_btn = gr.Button("Clear", variant="secondary", scale=1)
+                # Top row: Code input and GPU optimized code side by side
+                with gr.Row(elem_classes=["code-input-row"]):
+                    with gr.Column(scale=1):
+                        analyze_code = gr.Textbox(
+                            placeholder="Paste your Python code here for analysis...",
+                            label="💻 Code to Analyze",
+                            lines=15,
+                            max_lines=25,
+                            elem_classes=["code-input"]
+                        )
                     
                     with gr.Column(scale=1):
-                        gr.Markdown("### Sample Code")
-                        analysis_sample_dropdown = gr.Dropdown(
-                            choices=list(sample_codes.keys()),
-                            label="Choose Sample Code",
-                            interactive=True
-                        )
-                        load_analysis_sample_btn = gr.Button("Load Sample", variant="secondary")
-                
-                with gr.Row():
-                    with gr.Column():
-                        analysis_results = gr.Markdown(
-                            label="🧠 AI Analysis & Recommendations",
-                            value="Select code and click 'Analyze Code' to see AI-powered analysis and optimization recommendations."
-                        )
-                    
-                    with gr.Column():
                         optimized_code = gr.Textbox(
                             label="🚀 GPU-Optimized Code",
                             lines=15,
                             max_lines=25,
-                            placeholder="Optimized GPU code will appear here after analysis..."
+                            placeholder="Optimized GPU code will appear here after analysis...",
+                            interactive=False,
+                            elem_classes=["code-output"]
                         )
+                
+                # Button bar: Sample dropdown, load, analyze, and clear buttons
+                with gr.Row(elem_classes=["button-bar"]):
+                    analysis_sample_dropdown = gr.Dropdown(
+                        choices=list(sample_codes.keys()),
+                        # label="📋 Sample Code",
+                        interactive=True,
+                        scale=2,
+                        elem_classes=["sample-dropdown"]
+                    )
+                    load_analysis_sample_btn = gr.Button("📥 Load Sample", variant="secondary", scale=1)
+                    analyze_btn = gr.Button("🔍 Analyze Code", variant="primary", scale=2)
+                    clear_code_btn = gr.Button("🗑️ Clear", variant="secondary", scale=1)
+                
+                # Bottom area: AI insights taking the rest of the space
+                with gr.Row():
+                    analysis_results = gr.Markdown(
+                        label="🧠 AI Analysis & Recommendations",
+                        value="**Welcome to GPU Code Analysis!**\n\nSelect code from the samples above or paste your own Python code, then click 'Analyze Code' to see:\n- AI-powered analysis of your code\n- GPU optimization opportunities\n- Performance improvement suggestions\n- Best practices recommendations",
+                        elem_classes=["analysis-results"]
+                    )
             
             with gr.Tab("📚 Learning Resources"):
                 with gr.Row():
