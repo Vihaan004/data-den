@@ -130,7 +130,8 @@ print(f"Labels shape: {labels.shape}")"""
                     with gr.Column(scale=3):
                         chatbot = gr.Chatbot(
                             height=400, 
-                            label="Conversation"
+                            label="Conversation",
+                            type="messages"
                         )
                         
                         with gr.Row():

@@ -1,7 +1,7 @@
 # GPU Mentor Configuration
 
 # LLM Configuration
-OLLAMA_BASE_URL = "http://localhost:11434/"
+OLLAMA_BASE_URL = "http://localhost:11437/"  # Updated to match supercomputer port
 OLLAMA_MODEL = "qwen2.5-coder:14b"  # Use the available model
 LLM_TEMPERATURE = 0
 

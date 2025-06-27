@@ -44,7 +44,7 @@ def main():
         # Try supercomputer-style connection first
         host_node = socket.gethostname()
         try:
-            response = requests.get(f"http://vpatel69@{host_node}:11434/api/tags", timeout=5)
+            response = requests.get(f"http://vpatel69@{host_node}:11437/api/tags", timeout=5)
             if response.status_code == 200:
                 print("✅ Ollama server is running (supercomputer style)")
             else:
@@ -52,7 +52,7 @@ def main():
         except:
             # Try standard connection
             try:
-                response = requests.get("http://localhost:11434/api/tags", timeout=5)
+                response = requests.get("http://localhost:11437/api/tags", timeout=5)
                 if response.status_code == 200:
                     print("✅ Ollama server is running (standard)")
                 else:

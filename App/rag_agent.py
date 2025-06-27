@@ -35,7 +35,7 @@ class RAGAgent:
                 self.llm_model = ChatOllama(
                     model=OLLAMA_MODEL,
                     temperature=LLM_TEMPERATURE,
-                    base_url=f"http://vpatel69@{host_node}:11434/"
+                    base_url=f"http://vpatel69@{host_node}:11437/"  # Updated port
                 )
                 print("✅ LLM model initialized (supercomputer style)")
                 return
@@ -123,10 +123,33 @@ class RAGAgent:
                 query = tool_call['args']['query']
                 
                 # Get retrieved documents
-                retrieved_docs = self.retriever_tool.invoke({"query": query})
+                try:
+                    retrieved_docs = self.retriever_tool.invoke({"query": query})
+                    print(f"DEBUG: Retrieved docs type: {type(retrieved_docs)}")
+                    if isinstance(retrieved_docs, list) and len(retrieved_docs) > 0:
+                        print(f"DEBUG: First doc type: {type(retrieved_docs[0])}")
+                except Exception as e:
+                    print(f"Error retrieving documents: {e}")
+                    retrieved_docs = []
                 
-                # Create context from retrieved documents
-                context = "\n\n".join([doc.page_content for doc in retrieved_docs])
+                # Handle different types of retrieved content
+                if isinstance(retrieved_docs, list):
+                    # If it's a list of documents or strings
+                    context_parts = []
+                    for doc in retrieved_docs:
+                        if hasattr(doc, 'page_content'):
+                            context_parts.append(doc.page_content)
+                        elif isinstance(doc, str):
+                            context_parts.append(doc)
+                        else:
+                            context_parts.append(str(doc))
+                    context = "\n\n".join(context_parts)
+                elif hasattr(retrieved_docs, 'page_content'):
+                    # Single document
+                    context = retrieved_docs.page_content
+                else:
+                    # Fallback - convert to string
+                    context = str(retrieved_docs)
                 
                 # Generate response with context
                 response_prompt = f"""

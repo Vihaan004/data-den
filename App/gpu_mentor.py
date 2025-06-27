@@ -74,8 +74,12 @@ class GPUMentor:
         # Format response for chat
         chat_response = self._format_chat_response(response)
         
-        # Add to history
-        history.append([message, chat_response])
+        # Add to history in messages format
+        user_message = {"role": "user", "content": message}
+        assistant_message = {"role": "assistant", "content": chat_response}
+        
+        history.append(user_message)
+        history.append(assistant_message)
         
         return "", "", history
     
