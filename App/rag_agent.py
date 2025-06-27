@@ -190,9 +190,170 @@ class RAGAgent:
             return "RAG system not initialized"
         
         try:
-            result = self.rag_graph.invoke({
-                "messages": [HumanMessage(content=question)]
-            })
-            return result["messages"][-1].content
+            # Determine query type and handle appropriately
+            query_type = self._classify_query(question)
+            
+            if query_type == "general_chat":
+                # Handle general conversation without retrieval
+                return self._handle_general_chat(question)
+            elif query_type == "gpu_question":
+                # Handle GPU-specific questions with retrieval
+                result = self.rag_graph.invoke({
+                    "messages": [HumanMessage(content=question)]
+                })
+                return result["messages"][-1].content
+            else:
+                # Default to RAG for technical questions
+                result = self.rag_graph.invoke({
+                    "messages": [HumanMessage(content=question)]
+                })
+                return result["messages"][-1].content
+                
         except Exception as e:
             return f"Error processing query: {str(e)}"
+    
+    def _classify_query(self, question: str) -> str:
+        """Classify the type of query to determine appropriate handling."""
+        question_lower = question.lower().strip()
+        
+        # General chat patterns
+        general_patterns = [
+            r'\b(hello|hi|hey|greetings)\b',
+            r'\bwho are you\b',
+            r'\bwhat are you\b',
+            r'\bhow are you\b',
+            r'\bwhat can you do\b',
+            r'\bhelp\b',
+            r'\bthank you\b',
+            r'\bthanks\b',
+            r'\bbye\b',
+            r'\bgoodbye\b',
+            r'\bwhat does this code do\b',
+            r'\bexplain this code\b',
+            r'\bwhat is this\b'
+        ]
+        
+        # Check for general chat patterns
+        for pattern in general_patterns:
+            if re.search(pattern, question_lower):
+                return "general_chat"
+        
+        # GPU/technical patterns
+        gpu_patterns = [
+            r'\bgpu\b',
+            r'\bcuda\b',
+            r'\bcupy\b',
+            r'\bcudf\b',
+            r'\bcuml\b',
+            r'\brapids\b',
+            r'\bacceler\w+\b',
+            r'\boptimiz\w+\b',
+            r'\bperformance\b',
+            r'\bspeedup\b',
+            r'\bparallel\b'
+        ]
+        
+        # Check for GPU/technical patterns
+        for pattern in gpu_patterns:
+            if re.search(pattern, question_lower):
+                return "gpu_question"
+        
+        # If question contains code blocks, treat as technical
+        if "```" in question or "import " in question:
+            return "gpu_question"
+        
+        # Default to general chat for short, simple questions
+        if len(question.split()) < 10 and not any(word in question_lower for word in ['how', 'what', 'why', 'when', 'where']):
+            return "general_chat"
+        
+        return "gpu_question"
+    
+    def _handle_general_chat(self, question: str) -> str:
+        """Handle general conversation without document retrieval."""
+        question_lower = question.lower().strip()
+        
+        # Predefined responses for common queries
+        if any(greeting in question_lower for greeting in ['hello', 'hi', 'hey']):
+            return """Hello! I'm GPU Mentor, your AI assistant for GPU acceleration with NVIDIA Rapids libraries. 
+
+I can help you:
+- Analyze Python code for GPU optimization opportunities
+- Convert NumPy, Pandas, and scikit-learn code to use CuPy, cuDF, and cuML
+- Explain GPU acceleration concepts and best practices
+- Provide performance optimization recommendations
+
+Feel free to ask me questions about GPU acceleration or paste some code for analysis!"""
+        
+        elif any(phrase in question_lower for phrase in ['who are you', 'what are you']):
+            return """I'm GPU Mentor, an AI-powered assistant specialized in helping developers accelerate their Python code using NVIDIA Rapids libraries.
+
+My expertise includes:
+- **CuPy**: GPU acceleration for NumPy operations
+- **cuDF**: GPU acceleration for Pandas DataFrames  
+- **cuML**: GPU acceleration for machine learning with scikit-learn
+- **Performance optimization**: Memory management, data transfer optimization, and best practices
+
+I can analyze your code, suggest optimizations, and help you learn GPU acceleration techniques!"""
+        
+        elif 'what can you do' in question_lower:
+            return """I can help you accelerate your Python code with GPU computing! Here's what I can do:
+
+🔍 **Code Analysis**: Analyze your Python code to identify GPU acceleration opportunities
+
+⚡ **Optimization Suggestions**: Convert NumPy → CuPy, Pandas → cuDF, scikit-learn → cuML
+
+📊 **Performance Estimates**: Predict potential speedups from GPU acceleration
+
+🎓 **Learning Support**: Generate tutorials and answer questions about GPU programming
+
+💡 **Best Practices**: Share memory management tips and optimization techniques
+
+Just paste your Python code or ask me questions about GPU acceleration!"""
+        
+        elif any(phrase in question_lower for phrase in ['what does this code do', 'explain this code', 'what is this']):
+            return """I'd be happy to explain code for you! However, I don't see any code in your message. 
+
+Please paste the Python code you'd like me to explain, and I'll:
+- Describe what the code does step by step
+- Identify the libraries and functions being used
+- Explain the logic and data flow
+- Suggest any potential GPU acceleration opportunities
+
+You can paste code directly in the chat or use the "Code to Analyze" box below."""
+        
+        elif any(phrase in question_lower for phrase in ['thank you', 'thanks']):
+            return "You're welcome! I'm here to help with your GPU acceleration journey. Feel free to ask more questions or share code for optimization!"
+        
+        elif any(phrase in question_lower for phrase in ['bye', 'goodbye']):
+            return "Goodbye! Feel free to come back anytime you need help with GPU acceleration. Happy coding! 🚀"
+        
+        elif 'how are you' in question_lower:
+            return "I'm doing great and ready to help you accelerate your Python code with GPUs! What would you like to work on today?"
+        
+        else:
+            # For other general questions, try to be helpful
+            if len(question.split()) < 15:  # Short questions
+                return f"""I'm here to help with GPU acceleration using NVIDIA Rapids libraries! 
+
+Your question: "{question}"
+
+I specialize in:
+- Converting Python code to use GPU libraries (CuPy, cuDF, cuML)
+- Performance optimization and best practices
+- Explaining GPU acceleration concepts
+
+Could you provide more details about what you'd like to know, or share some code you'd like to optimize?"""
+            else:
+                # Longer questions - try to answer with LLM but without retrieval
+                try:
+                    if self.llm_model:
+                        response = self.llm_model.invoke([HumanMessage(content=f"""You are GPU Mentor, an AI assistant specialized in GPU acceleration with NVIDIA Rapids libraries. Answer this question in a helpful, friendly way:
+
+{question}
+
+If the question is about GPU acceleration, programming, or code optimization, provide a technical but accessible answer. If it's a general question, respond conversationally while mentioning your specialty in GPU acceleration.""")])
+                        return response.content
+                    else:
+                        return "I'd be happy to help! Could you be more specific about what you'd like to know regarding GPU acceleration or code optimization?"
+                except:
+                    return "I'd be happy to help! Could you be more specific about what you'd like to know regarding GPU acceleration or code optimization?"
