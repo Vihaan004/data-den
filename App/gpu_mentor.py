@@ -1,6 +1,7 @@
 from typing import Dict, List, Any
 import time
 from datetime import datetime
+from langchain_core.messages import HumanMessage
 
 class GPUMentor:
     """Main GPU Mentor class that coordinates RAG agent and code optimization."""
@@ -154,6 +155,8 @@ Focus on practical GPU acceleration techniques."""
             return "No code provided for analysis.", ""
         
         try:
+            print(f"DEBUG: Starting code analysis for code length: {len(code)}")
+            
             # Create structured prompt for LLM to provide both analysis and optimized code
             llm_analysis_prompt = f"""You are GPU Mentor, an expert in NVIDIA Rapids GPU acceleration. Analyze the following Python code and provide GPU optimization recommendations.
 
@@ -197,15 +200,39 @@ Please provide your response in exactly this format:
 
 Focus on practical, working code that demonstrates clear GPU acceleration benefits."""
             
-            # Get LLM response
-            llm_response = self.rag_agent.query(llm_analysis_prompt)
+            print(f"DEBUG: Sending prompt to RAG agent, prompt length: {len(llm_analysis_prompt)}")
+            
+            # Try direct LLM call first to test connection
+            try:
+                print("DEBUG: Testing direct code LLM connection...")
+                if self.rag_agent.code_llm_model:
+                    test_response = self.rag_agent.code_llm_model.invoke([HumanMessage(content="Hello, are you working?")])
+                    print(f"DEBUG: Direct code LLM test successful: {test_response.content[:100]}...")
+                else:
+                    print("DEBUG: Code LLM model is None")
+            except Exception as e:
+                print(f"DEBUG: Direct code LLM test failed: {e}")
+            
+            # Get LLM response using the dedicated code analysis method
+            llm_response = self.rag_agent.query_code_analysis(llm_analysis_prompt)
+            
+            print(f"DEBUG: Received LLM response, length: {len(llm_response) if llm_response else 0}")
+            print(f"DEBUG: LLM response preview: {llm_response[:200] if llm_response else 'None'}...")
+            
+            if not llm_response or not llm_response.strip():
+                return "No response received from the AI model. Please check the model connection.", ""
             
             # Parse the response to separate analysis from optimized code
             analysis_text, optimized_code = self._parse_llm_response(llm_response)
             
+            print(f"DEBUG: Parsed analysis length: {len(analysis_text)}, code length: {len(optimized_code)}")
+            
             return analysis_text, optimized_code
             
         except Exception as e:
+            print(f"ERROR in analyze_code_only: {str(e)}")
+            import traceback
+            traceback.print_exc()
             error_msg = f"Error analyzing code: {str(e)}"
             return error_msg, ""
     

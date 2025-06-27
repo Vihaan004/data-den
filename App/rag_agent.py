@@ -6,7 +6,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 from langgraph.graph import MessagesState
 import socket
-from config import OLLAMA_BASE_URL, OLLAMA_MODEL, LLM_TEMPERATURE, OLLAMA_PORT
+from config import OLLAMA_BASE_URL, CHAT_MODEL, CODE_MODEL, LLM_TEMPERATURE, OLLAMA_PORT
 
 class GradeDocuments(BaseModel):
     """Grade documents using a binary score for relevance check."""
@@ -18,40 +18,57 @@ class RAGAgent:
     """Core RAG agent for GPU acceleration knowledge."""
     
     def __init__(self):
-        self.llm_model = None
+        self.chat_llm_model = None  # For general chat and RAG
+        self.code_llm_model = None  # For code analysis and optimization
         self.retriever_tool = None
         self.rag_graph = None
         self._setup_llm()
     
     def _setup_llm(self):
-        """Initialize the local LLM model."""
+        """Initialize both LLM models - chat model and code model."""
         try:
             # Try different connection methods for supercomputer environment
             import socket
             host_node = socket.gethostname()
             
-            # Try the supercomputer-style connection first
+            # Setup Chat Model (for general conversation and RAG)
             try:
-                self.llm_model = ChatOllama(
-                    model=OLLAMA_MODEL,
+                self.chat_llm_model = ChatOllama(
+                    model=CHAT_MODEL,
                     temperature=LLM_TEMPERATURE,
                     base_url=f"http://vpatel69@{host_node}:{OLLAMA_PORT}/"  # Use configurable port
                 )
-                print("✅ LLM model initialized (supercomputer style)")
-                return
+                print(f"✅ Chat LLM model ({CHAT_MODEL}) initialized (supercomputer style)")
             except:
-                pass
+                # Fallback to standard connection
+                self.chat_llm_model = ChatOllama(
+                    model=CHAT_MODEL,
+                    temperature=LLM_TEMPERATURE,
+                    base_url=OLLAMA_BASE_URL
+                )
+                print(f"✅ Chat LLM model ({CHAT_MODEL}) initialized (standard)")
             
-            # Fallback to standard connection
-            self.llm_model = ChatOllama(
-                model=OLLAMA_MODEL,
-                temperature=LLM_TEMPERATURE,
-                base_url=OLLAMA_BASE_URL
-            )
-            print("✅ LLM model initialized (standard)")
+            # Setup Code Model (for code analysis and optimization)
+            try:
+                self.code_llm_model = ChatOllama(
+                    model=CODE_MODEL,
+                    temperature=LLM_TEMPERATURE,
+                    base_url=f"http://vpatel69@{host_node}:{OLLAMA_PORT}/"  # Use configurable port
+                )
+                print(f"✅ Code LLM model ({CODE_MODEL}) initialized (supercomputer style)")
+            except:
+                # Fallback to standard connection
+                self.code_llm_model = ChatOllama(
+                    model=CODE_MODEL,
+                    temperature=LLM_TEMPERATURE,
+                    base_url=OLLAMA_BASE_URL
+                )
+                print(f"✅ Code LLM model ({CODE_MODEL}) initialized (standard)")
+                
         except Exception as e:
-            print(f"⚠️ Could not initialize LLM: {e}")
-            self.llm_model = None
+            print(f"⚠️ Could not initialize LLM models: {e}")
+            self.chat_llm_model = None
+            self.code_llm_model = None
     
     def set_retriever_tool(self, retriever_tool):
         """Set the retriever tool for the RAG system."""
@@ -88,18 +105,18 @@ class RAGAgent:
     
     def _generate_query_or_respond(self, state: MessagesState):
         """Generate a response or decide to retrieve documents."""
-        if not self.llm_model:
-            return {"messages": [AIMessage(content="LLM model not available. Please check Ollama connection.")]}
+        if not self.chat_llm_model:
+            return {"messages": [AIMessage(content="Chat LLM model not available. Please check Ollama connection.")]}
         
         try:
-            response = self.llm_model.bind_tools([self.retriever_tool]).invoke(state["messages"])
+            response = self.chat_llm_model.bind_tools([self.retriever_tool]).invoke(state["messages"])
             # Clean up response content
             content = re.sub(r"<think>.*</think>", "", response.content, flags=re.DOTALL).strip()
             response.content = content
             return {"messages": [response]}
         except Exception as e:
             print(f"Error in LLM generation: {e}")
-            return {"messages": [AIMessage(content=f"Error generating response. Please check if Ollama is running with the model {OLLAMA_MODEL}")]}
+            return {"messages": [AIMessage(content=f"Error generating response. Please check if Ollama is running with the chat model {CHAT_MODEL}")]}
     
     def _grade_documents(self, state: MessagesState):
         """Grade retrieved documents for relevance."""
@@ -109,8 +126,8 @@ class RAGAgent:
     
     def _generate_response(self, state: MessagesState):
         """Generate final response based on retrieved documents."""
-        if not self.llm_model:
-            return {"messages": [AIMessage(content="LLM model not available. Please check Ollama connection.")]}
+        if not self.chat_llm_model:
+            return {"messages": [AIMessage(content="Chat LLM model not available. Please check Ollama connection.")]}
         
         try:
             # Get the last message and generate response
@@ -163,16 +180,16 @@ class RAGAgent:
                 Provide a comprehensive answer focusing on practical GPU acceleration techniques.
                 """
                 
-                response = self.llm_model.invoke([HumanMessage(content=response_prompt)])
+                response = self.chat_llm_model.invoke([HumanMessage(content=response_prompt)])
                 return {"messages": [response]}
             else:
                 # Direct response without retrieval
-                response = self.llm_model.invoke(state["messages"])
+                response = self.chat_llm_model.invoke(state["messages"])
                 return {"messages": [response]}
                 
         except Exception as e:
             print(f"Error in response generation: {e}")
-            return {"messages": [AIMessage(content=f"Error generating response. Please check if Ollama is running with the model {OLLAMA_MODEL}")]}
+            return {"messages": [AIMessage(content=f"Error generating response. Please check if Ollama is running with the chat model {CHAT_MODEL}")]}
     
     def _decide_to_retrieve(self, state: MessagesState) -> str:
         """Decide whether to retrieve documents or respond directly."""
@@ -187,27 +204,42 @@ class RAGAgent:
     def query(self, question: str) -> str:
         """Query the RAG system with a question."""
         try:
+            print(f"DEBUG: RAGAgent.query called with question length: {len(question)}")
+            
             # Determine query type and handle appropriately
             query_type = self._classify_query(question)
             print(f"DEBUG: Query classified as: {query_type}")
             
             if query_type == "general_chat":
                 # Handle general conversation without retrieval - use direct LLM
-                return self._handle_general_chat(question)
+                print("DEBUG: Handling as general chat")
+                result = self._handle_general_chat(question)
+                print(f"DEBUG: General chat result length: {len(result) if result else 0}")
+                return result
             elif query_type == "gpu_question":
                 # Handle GPU-specific questions with RAG retrieval
+                print("DEBUG: Handling as GPU question with RAG")
                 if not self.rag_graph:
+                    print("ERROR: RAG graph not initialized")
                     return "RAG system not initialized for GPU queries"
+                
+                print("DEBUG: Invoking RAG graph")
                 result = self.rag_graph.invoke({
                     "messages": [HumanMessage(content=question)]
                 })
-                return result["messages"][-1].content
+                print(f"DEBUG: RAG graph completed, result messages: {len(result.get('messages', []))}")
+                response = result["messages"][-1].content
+                print(f"DEBUG: Final response length: {len(response) if response else 0}")
+                return response
             else:
                 # This shouldn't happen with our current classification, but fallback to general chat
+                print("DEBUG: Fallback to general chat")
                 return self._handle_general_chat(question)
                 
         except Exception as e:
             print(f"ERROR in query processing: {e}")
+            import traceback
+            traceback.print_exc()
             return f"Error processing query: {str(e)}"
     
     def _classify_query(self, question: str) -> str:
@@ -273,6 +305,8 @@ class RAGAgent:
     
     def _handle_general_chat(self, question: str) -> str:
         """Handle general conversation without document retrieval."""
+        print(f"DEBUG: _handle_general_chat called with question length: {len(question)}")
+        
         question_lower = question.lower().strip()
         
         # Predefined responses for common queries
@@ -409,8 +443,8 @@ As GPU Mentor, I specialize in helping you accelerate your Python code using NVI
         else:
             # For other questions, use LLM without RAG retrieval
             try:
-                if self.llm_model:
-                    response = self.llm_model.invoke([HumanMessage(content=f"""You are GPU Mentor, a friendly AI assistant specialized in GPU acceleration with NVIDIA Rapids libraries. Answer this question in a helpful, conversational way:
+                if self.chat_llm_model:
+                    response = self.chat_llm_model.invoke([HumanMessage(content=f"""You are GPU Mentor, a friendly AI assistant specialized in GPU acceleration with NVIDIA Rapids libraries. Answer this question in a helpful, conversational way:
 
 {question}
 
@@ -435,3 +469,23 @@ As GPU Mentor, I specialize in GPU acceleration with NVIDIA Rapids libraries. Wh
 - Performance optimization and best practices
 
 Is there any Python code you'd like me to help optimize for GPU acceleration?"""
+    
+    def query_code_analysis(self, prompt: str) -> str:
+        """Query the code-specific LLM for code analysis and optimization."""
+        try:
+            print(f"DEBUG: query_code_analysis called with prompt length: {len(prompt)}")
+            
+            if not self.code_llm_model:
+                return "Code analysis model not available. Please check Ollama connection."
+            
+            print(f"DEBUG: Using code model {CODE_MODEL} for analysis")
+            response = self.code_llm_model.invoke([HumanMessage(content=prompt)])
+            
+            print(f"DEBUG: Code analysis response length: {len(response.content) if response.content else 0}")
+            return response.content
+            
+        except Exception as e:
+            print(f"ERROR in code analysis: {e}")
+            import traceback
+            traceback.print_exc()
+            return f"Error in code analysis: {str(e)}"

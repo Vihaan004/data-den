@@ -119,7 +119,12 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
 Ensure the optimized code is complete and runnable.
 """
             
-            response = self.rag_agent.query(optimization_prompt)
+            # Use the dedicated code analysis method if available
+            if hasattr(self.rag_agent, 'query_code_analysis'):
+                response = self.rag_agent.query_code_analysis(optimization_prompt)
+            else:
+                # Fallback to regular query method
+                response = self.rag_agent.query(optimization_prompt)
             return response
         except Exception as e:
             print(f"LLM optimization failed: {e}")

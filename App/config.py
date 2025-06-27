@@ -3,7 +3,10 @@
 # LLM Configuration
 OLLAMA_PORT = 11434  # Configurable Ollama port - change this to match your Ollama server port
 OLLAMA_BASE_URL = f"http://localhost:{OLLAMA_PORT}/"  # Updated to use configurable port
-OLLAMA_MODEL = "qwen2.5-coder:14b"  # Use the available model
+
+# Model Configuration - Using different models for different tasks
+CHAT_MODEL = "qwen3:14b"  # General chat and RAG responses
+CODE_MODEL = "qwen2.5-coder:14b"  # Code analysis and optimization
 LLM_TEMPERATURE = 0
 
 # Embedding Model
