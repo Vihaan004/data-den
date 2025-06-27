@@ -2,22 +2,49 @@
 """
 Simple GPU matrix operations test for Sol supercomputer using RAPIDS 25.02.
 This script performs basic matrix operations using CuPy and measures execution time.
+
+Note: If you see CuPy package conflicts, the script will still work but with warnings.
+The RAPIDS environment should handle CuPy properly.
 """
 
 import cupy as cp
 import time
 import sys
+import warnings
 
 def main():
+    # Suppress CuPy installation warnings for cleaner output
+    warnings.filterwarnings("ignore", message=".*multiple CuPy packages.*")
+    
     print("=" * 50)
     print("GPU Matrix Operations Test")
     print("Using CuPy (RAPIDS 25.02) for GPU computation")
     print("=" * 50)
     
     # Check GPU availability
-    print(f"GPU Device: {cp.cuda.get_device_name()}")
-    print(f"GPU Memory: {cp.cuda.MemoryInfo().total / 1024**3:.1f} GB total")
-    print(f"CUDA Version: {cp.cuda.runtime.runtimeGetVersion()}")
+    try:
+        device_id = cp.cuda.get_device_id()
+        device = cp.cuda.Device(device_id)
+        with device:
+            device_name = device.name.decode('utf-8') if hasattr(device.name, 'decode') else str(device.name)
+        print(f"GPU Device: {device_name}")
+        print(f"GPU Device ID: {device_id}")
+    except Exception as e:
+        print(f"GPU Device: Unable to get device name ({e})")
+        print(f"GPU Device ID: {cp.cuda.get_device_id()}")
+    
+    try:
+        meminfo = cp.cuda.MemoryInfo()
+        print(f"GPU Memory: {meminfo.total / 1024**3:.1f} GB total")
+    except Exception as e:
+        print(f"GPU Memory: Unable to get memory info ({e})")
+    
+    try:
+        cuda_version = cp.cuda.runtime.runtimeGetVersion()
+        print(f"CUDA Runtime Version: {cuda_version}")
+    except Exception as e:
+        print(f"CUDA Runtime Version: Unable to get version ({e})")
+    
     print()
     
     # Record start time
@@ -160,14 +187,30 @@ def main():
     print("System Information:")
     print(f"  Python version: {sys.version}")
     print(f"  CuPy version: {cp.__version__}")
-    print(f"  CUDA Runtime version: {cp.cuda.runtime.runtimeGetVersion()}")
-    print(f"  GPU: {cp.cuda.get_device_name()}")
+    
+    try:
+        cuda_version = cp.cuda.runtime.runtimeGetVersion()
+        print(f"  CUDA Runtime version: {cuda_version}")
+    except Exception as e:
+        print(f"  CUDA Runtime version: Unable to get version ({e})")
+    
+    try:
+        device_id = cp.cuda.get_device_id()
+        device = cp.cuda.Device(device_id)
+        with device:
+            device_name = device.name.decode('utf-8') if hasattr(device.name, 'decode') else str(device.name)
+        print(f"  GPU: {device_name}")
+    except Exception as e:
+        print(f"  GPU: Unable to get device name ({e})")
     
     # GPU Memory info
-    meminfo = cp.cuda.MemoryInfo()
-    print(f"  GPU Memory - Total: {meminfo.total / 1024**3:.1f} GB")
-    print(f"  GPU Memory - Used: {meminfo.used / 1024**3:.1f} GB")
-    print(f"  GPU Memory - Free: {meminfo.free / 1024**3:.1f} GB")
+    try:
+        meminfo = cp.cuda.MemoryInfo()
+        print(f"  GPU Memory - Total: {meminfo.total / 1024**3:.1f} GB")
+        print(f"  GPU Memory - Used: {meminfo.used / 1024**3:.1f} GB")
+        print(f"  GPU Memory - Free: {meminfo.free / 1024**3:.1f} GB")
+    except Exception as e:
+        print(f"  GPU Memory: Unable to get memory info ({e})")
 
 if __name__ == "__main__":
     main()
