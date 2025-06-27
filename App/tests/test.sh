@@ -16,7 +16,7 @@ module load mamba/latest
 source activate scicomp24.11 
 
 #Change to the directory of our script
-cd ~/R1/App
+cd ~/R1/App/tests
 
 #Run the software/python script
 python matrix_operations_cpu.py

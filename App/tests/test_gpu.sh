@@ -18,7 +18,7 @@ module load cuda/12.0
 source activate rapids25.02
 
 #Change to the directory of our script
-cd ~/R1/App
+cd ~/R1/App/tests
 
 #Run the software/python script
 python matrix_operations_gpu.py
