@@ -29,11 +29,40 @@ class GPUMentor:
         
         try:
             # Get RAG response
-            if question:
-                if code:
-                    # Combine question and code for better context
-                    combined_query = f"Question: {question}\n\nCode to analyze:\n```python\n{code}\n```"
+            if question or code:
+                if code and question:
+                    # Both question and code provided
+                    combined_query = f"""Question: {question}
+
+Code to analyze and optimize for GPU acceleration:
+```python
+{code}
+```
+
+Please analyze this code and provide:
+1. GPU optimization suggestions
+2. Specific RAPIDS library recommendations (CuPy, cuDF, cuML)
+3. Expected performance improvements
+4. Code examples showing the optimized version
+
+Focus on practical GPU acceleration techniques using NVIDIA Rapids libraries."""
+                elif code and not question:
+                    # Only code provided
+                    combined_query = f"""Please analyze the following Python code for GPU acceleration opportunities:
+
+```python
+{code}
+```
+
+Provide:
+1. Analysis of current code and GPU acceleration potential
+2. Optimized version using NVIDIA Rapids libraries (CuPy, cuDF, cuML)
+3. Expected performance improvements
+4. Best practices for GPU optimization
+
+Focus on practical GPU acceleration techniques."""
                 else:
+                    # Only question provided
                     combined_query = question
                 
                 response["text_response"] = self.rag_agent.query(combined_query)
@@ -68,6 +97,11 @@ class GPUMentor:
         if not message.strip() and not code.strip():
             return "", "", history
         
+        # Create a meaningful user message that includes both text and code
+        user_content = message if message.strip() else "Please analyze this code for GPU optimization opportunities."
+        if code.strip():
+            user_content += f"\n\nCode to analyze:\n```python\n{code}\n```"
+        
         # Process the input
         response = self.process_user_input(message, code)
         
@@ -75,7 +109,7 @@ class GPUMentor:
         chat_response = self._format_chat_response(response)
         
         # Add to history in messages format
-        user_message = {"role": "user", "content": message}
+        user_message = {"role": "user", "content": user_content}
         assistant_message = {"role": "assistant", "content": chat_response}
         
         history.append(user_message)

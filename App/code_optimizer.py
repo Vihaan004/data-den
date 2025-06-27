@@ -96,20 +96,28 @@ class CodeOptimizer:
         """Use LLM to generate optimized GPU code."""
         try:
             optimization_prompt = f"""
-            Optimize the following Python code for GPU acceleration using NVIDIA Rapids libraries (CuPy, cuDF, cuML).
-            
-            Original code:
-            ```python
-            {code}
-            ```
-            
-            Please provide:
-            1. GPU-optimized version using appropriate Rapids libraries
-            2. Brief explanation of the optimizations
-            3. Expected performance improvements
-            
-            Focus on practical, working code that demonstrates GPU acceleration benefits.
-            """
+Analyze and optimize the following Python code for GPU acceleration using NVIDIA Rapids libraries (CuPy, cuDF, cuML).
+
+Original code:
+```python
+{code}
+```
+
+Please provide:
+1. **GPU-optimized version** using appropriate Rapids libraries:
+   - Use CuPy for NumPy operations
+   - Use cuDF for Pandas operations  
+   - Use cuML for scikit-learn operations
+
+2. **Explanation of optimizations** made and why they help
+
+3. **Expected performance improvements** and when GPU acceleration is beneficial
+
+4. **Best practices** for GPU memory management and data transfers
+
+Focus on practical, working code that demonstrates clear GPU acceleration benefits.
+Ensure the optimized code is complete and runnable.
+"""
             
             response = self.rag_agent.query(optimization_prompt)
             return response
