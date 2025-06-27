@@ -39,13 +39,28 @@ def main():
     # Check if Ollama is available
     try:
         import requests
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
-        if response.status_code == 200:
-            print("✅ Ollama server is running")
-        else:
-            print("⚠️ Ollama server may not be running properly")
+        import socket
+        
+        # Try supercomputer-style connection first
+        host_node = socket.gethostname()
+        try:
+            response = requests.get(f"http://vpatel69@{host_node}:11434/api/tags", timeout=5)
+            if response.status_code == 200:
+                print("✅ Ollama server is running (supercomputer style)")
+            else:
+                print("⚠️ Ollama server responded with unexpected status")
+        except:
+            # Try standard connection
+            try:
+                response = requests.get("http://localhost:11434/api/tags", timeout=5)
+                if response.status_code == 200:
+                    print("✅ Ollama server is running (standard)")
+                else:
+                    print("⚠️ Ollama server responded with unexpected status")
+            except:
+                print("⚠️ Ollama server not detected (some features may be limited)")
     except:
-        print("⚠️ Ollama server not detected (some features may be limited)")
+        print("⚠️ Could not check Ollama status")
     
     # Launch the app
     print("\n🌐 Starting GPU Mentor Application...")
@@ -62,7 +77,7 @@ def main():
         print("\nTroubleshooting:")
         print("1. Make sure all requirements are installed: pip install -r requirements.txt")
         print("2. Start Ollama server: ollama serve")
-        print("3. Install Ollama model: ollama pull qwen2.5:14b")
+        print("3. Install Ollama model: ollama pull qwen2.5-coder:14b")
 
 if __name__ == "__main__":
     main()

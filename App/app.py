@@ -128,7 +128,11 @@ print(f"Labels shape: {labels.shape}")"""
             with gr.Tab("💬 Chat with GPU Mentor"):
                 with gr.Row():
                     with gr.Column(scale=3):
-                        chatbot = gr.Chatbot(height=400, label="Conversation")
+                        chatbot = gr.Chatbot(
+                            height=400, 
+                            label="Conversation",
+                            type="tuples"  # Explicitly specify to avoid warning
+                        )
                         
                         with gr.Row():
                             message_input = gr.Textbox(
@@ -138,11 +142,11 @@ print(f"Labels shape: {labels.shape}")"""
                             )
                             submit_btn = gr.Button("Send", variant="primary", scale=1)
                         
-                        code_input = gr.Code(
-                            language="python",
+                        code_input = gr.Textbox(
                             placeholder="Paste your Python code here for analysis...",
                             label="Code to Analyze (Optional)",
-                            lines=10
+                            lines=10,
+                            max_lines=20
                         )
                         
                         clear_btn = gr.Button("Clear Chat", variant="secondary")
@@ -159,21 +163,21 @@ print(f"Labels shape: {labels.shape}")"""
             with gr.Tab("🔍 Code Analysis & Optimization"):
                 with gr.Row():
                     with gr.Column():
-                        analyze_code = gr.Code(
-                            language="python",
+                        analyze_code = gr.Textbox(
                             placeholder="Paste your Python code here for analysis...",
                             label="Code to Analyze",
-                            lines=15
+                            lines=15,
+                            max_lines=25
                         )
                         
                         analyze_btn = gr.Button("Analyze Code", variant="primary")
                     
                     with gr.Column():
                         analysis_results = gr.Markdown(label="Analysis Results")
-                        optimized_code = gr.Code(
-                            language="python",
+                        optimized_code = gr.Textbox(
                             label="Optimized GPU Code",
-                            lines=15
+                            lines=15,
+                            max_lines=25
                         )
             
             with gr.Tab("📚 Learning Resources"):

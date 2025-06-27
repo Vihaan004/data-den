@@ -26,14 +26,32 @@ class RAGAgent:
     def _setup_llm(self):
         """Initialize the local LLM model."""
         try:
+            # Try different connection methods for supercomputer environment
+            import socket
+            host_node = socket.gethostname()
+            
+            # Try the supercomputer-style connection first
+            try:
+                self.llm_model = ChatOllama(
+                    model=OLLAMA_MODEL,
+                    temperature=LLM_TEMPERATURE,
+                    base_url=f"http://vpatel69@{host_node}:11434/"
+                )
+                print("✅ LLM model initialized (supercomputer style)")
+                return
+            except:
+                pass
+            
+            # Fallback to standard connection
             self.llm_model = ChatOllama(
                 model=OLLAMA_MODEL,
                 temperature=LLM_TEMPERATURE,
                 base_url=OLLAMA_BASE_URL
             )
-            print("✅ LLM model initialized")
+            print("✅ LLM model initialized (standard)")
         except Exception as e:
             print(f"⚠️ Could not initialize LLM: {e}")
+            self.llm_model = None
     
     def set_retriever_tool(self, retriever_tool):
         """Set the retriever tool for the RAG system."""
@@ -71,7 +89,7 @@ class RAGAgent:
     def _generate_query_or_respond(self, state: MessagesState):
         """Generate a response or decide to retrieve documents."""
         if not self.llm_model:
-            return {"messages": [AIMessage(content="LLM model not available")]}
+            return {"messages": [AIMessage(content="LLM model not available. Please check Ollama connection.")]}
         
         try:
             response = self.llm_model.bind_tools([self.retriever_tool]).invoke(state["messages"])
@@ -80,7 +98,8 @@ class RAGAgent:
             response.content = content
             return {"messages": [response]}
         except Exception as e:
-            return {"messages": [AIMessage(content=f"Error generating response: {str(e)}")]}
+            print(f"Error in LLM generation: {e}")
+            return {"messages": [AIMessage(content=f"Error generating response. Please check if Ollama is running with the model {OLLAMA_MODEL}")]}
     
     def _grade_documents(self, state: MessagesState):
         """Grade retrieved documents for relevance."""
@@ -91,7 +110,7 @@ class RAGAgent:
     def _generate_response(self, state: MessagesState):
         """Generate final response based on retrieved documents."""
         if not self.llm_model:
-            return {"messages": [AIMessage(content="LLM model not available")]}
+            return {"messages": [AIMessage(content="LLM model not available. Please check Ollama connection.")]}
         
         try:
             # Get the last message and generate response
@@ -129,7 +148,8 @@ class RAGAgent:
                 return {"messages": [response]}
                 
         except Exception as e:
-            return {"messages": [AIMessage(content=f"Error generating response: {str(e)}")]}
+            print(f"Error in response generation: {e}")
+            return {"messages": [AIMessage(content=f"Error generating response. Please check if Ollama is running with the model {OLLAMA_MODEL}")]}
     
     def _decide_to_retrieve(self, state: MessagesState) -> str:
         """Decide whether to retrieve documents or respond directly."""
