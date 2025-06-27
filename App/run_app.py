@@ -70,8 +70,6 @@ def check_ollama():
 
 def main():
     parser = argparse.ArgumentParser(description="Run GPU Mentor Application")
-    parser.add_argument("--port", type=int, default=7860, help="Port to run the application on")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to run the application on")
     parser.add_argument("--share", action="store_true", help="Create a public shareable link")
     parser.add_argument("--skip-checks", action="store_true", help="Skip requirement checks")
     
@@ -94,16 +92,12 @@ def main():
     try:
         from app import GPUMentorApp
         
-        print(f"🌐 Starting application on {args.host}:{args.port}")
+        print(f"🌐 Starting application...")
         if args.share:
             print("🔗 Creating public shareable link...")
         
         app = GPUMentorApp()
-        app.launch(
-            share=args.share,
-            server_name=args.host,
-            server_port=args.port
-        )
+        app.launch(share=args.share)
         
     except KeyboardInterrupt:
         print("\n👋 Application stopped by user")

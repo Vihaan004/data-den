@@ -130,8 +130,7 @@ print(f"Labels shape: {labels.shape}")"""
                     with gr.Column(scale=3):
                         chatbot = gr.Chatbot(
                             height=400, 
-                            label="Conversation",
-                            type="tuples"  # Explicitly specify to avoid warning
+                            label="Conversation"
                         )
                         
                         with gr.Row():
@@ -243,15 +242,10 @@ print(f"Labels shape: {labels.shape}")"""
         
         return interface
     
-    def launch(self, share=False, server_name="0.0.0.0", server_port=7860):
+    def launch(self, share=True):
         """Launch the application."""
         interface = self.create_interface()
-        interface.launch(
-            share=share,
-            server_name=server_name,
-            server_port=server_port,
-            show_error=True
-        )
+        interface.launch(share=share)
 
 if __name__ == "__main__":
     app = GPUMentorApp()

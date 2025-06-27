@@ -69,7 +69,7 @@ def main():
         from app import GPUMentorApp
         app = GPUMentorApp()
         print("🎉 Application ready! Opening in your browser...")
-        app.launch(share=False)
+        app.launch(share=True)
     except KeyboardInterrupt:
         print("\n👋 Application stopped by user")
     except Exception as e:
