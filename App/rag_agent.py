@@ -6,7 +6,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 from langgraph.graph import MessagesState
 import socket
-from config import OLLAMA_BASE_URL, OLLAMA_MODEL, LLM_TEMPERATURE
+from config import OLLAMA_BASE_URL, OLLAMA_MODEL, LLM_TEMPERATURE, OLLAMA_PORT
 
 class GradeDocuments(BaseModel):
     """Grade documents using a binary score for relevance check."""
@@ -35,7 +35,7 @@ class RAGAgent:
                 self.llm_model = ChatOllama(
                     model=OLLAMA_MODEL,
                     temperature=LLM_TEMPERATURE,
-                    base_url=f"http://vpatel69@{host_node}:11437/"  # Updated port
+                    base_url=f"http://vpatel69@{host_node}:{OLLAMA_PORT}/"  # Use configurable port
                 )
                 print("✅ LLM model initialized (supercomputer style)")
                 return

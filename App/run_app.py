@@ -55,7 +55,8 @@ def check_ollama():
     """Check if Ollama is running."""
     try:
         import requests
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        from config import OLLAMA_PORT
+        response = requests.get(f"http://localhost:{OLLAMA_PORT}/api/tags", timeout=5)
         if response.status_code == 200:
             print("✅ Ollama server is running")
             return True
