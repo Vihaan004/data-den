@@ -14,7 +14,7 @@ def indent_code(code_lines, base_indent=4, loop_indent=4):
     return "\n".join(indented)
 
 def wrap_with_timing(code, is_gpu=False):
-    """Wrap user code with performance timing code and repetitions for accuracy."""
+    """Wrap user code with performance timing code and repetition for accurate measurements."""
     # Check if the code already has imports for time and warnings
     has_time_import = re.search(r'import\s+time|from\s+time\s+import', code)
     has_warnings_import = re.search(r'import\s+warnings|from\s+warnings\s+import', code)
@@ -25,8 +25,10 @@ def wrap_with_timing(code, is_gpu=False):
         header += "import time\n"
     if not has_warnings_import:
         header += "import warnings\n"
+    # Always add these imports for microsleep and system functions
+    header += "import sys\nimport os\n"
     
-    # Split code into imports/setup and actual computation
+    # We'll split the code into imports/setup and actual computation
     code_lines = code.split('\n')
     import_setup_lines = []
     computation_lines = []
@@ -36,8 +38,18 @@ def wrap_with_timing(code, is_gpu=False):
     assignment_pattern = re.compile(r'^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=')
     function_def_pattern = re.compile(r'^\s*(def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(|class\s+[a-zA-Z_][a-zA-Z0-9_]*)')
     
+    # Detect if there's computational code to be timed
+    has_computational_pattern = False
+    for line in code_lines:
+        if (re.search(r'(matrix|np\.dot|np\.matmul|dot\(|matmul\(|cupy|cp\.|\.fit|\.predict|\.transform)', line) or
+            line.strip().startswith("for ") or 
+            "compute" in line.lower()):
+            has_computational_pattern = True
+            break
+    
     # Extract import statements and setup code
     main_code_started = False
+    computation_marker_found = False
     
     for line in code_lines:
         stripped = line.strip()
@@ -48,6 +60,7 @@ def wrap_with_timing(code, is_gpu=False):
             stripped.startswith('# Begin algorithm') or
             stripped.startswith('# START TIMING HERE')):
             main_code_started = True
+            computation_marker_found = True
             computation_lines.append(line)
             continue
             
@@ -74,23 +87,23 @@ def wrap_with_timing(code, is_gpu=False):
             # This is likely computational code
             computation_lines.append(line)
     
-    # If no computation code was identified, use the whole code as computation
-    # This ensures timing works even in simple examples
-    if not computation_lines:
-        computation_lines = code_lines
-        import_setup_lines = []
-    
-    setup_code = "\n".join(import_setup_lines)
+    # If no computation marker was found and there's no clear computational code,
+    # treat the second half of the code as computation (best effort)
+    if not computation_marker_found and not has_computational_pattern and len(code_lines) > 1:
+        import_setup_lines = code_lines[:len(code_lines)//2]
+        computation_lines = code_lines[len(code_lines)//2:]
     
     if is_gpu:
-        # Add GPU-specific code
+        # Check if cupy is already imported
         has_cupy_import = re.search(r'import\s+cupy|from\s+cupy\s+import|import\s+cupy\s+as\s+cp', code)
         if not has_cupy_import:
             header += "import cupy as cp\n"
         
-        # Create the GPU timing wrapper
-        gpu_wrapper = f"""
-{header}
+        # Add all imports and setup code first
+        setup_code = "\n".join(import_setup_lines)
+        
+        # Add benchmark header with timing only around computation code
+        header += f"""
 {setup_code}
 
 # GPU Benchmark - Added by GPU Mentor
@@ -99,96 +112,56 @@ print("="*50)
 print("GPU BENCHMARK EXECUTION")
 print("="*50)
 
-# Constants for timing control
-MIN_RUNS = 5
-MAX_RUNS = 100
-TARGET_TIME = 1.0  # seconds
-
-# Force some computation to ensure GPU is initialized
-print("Warming up GPU...")
-try:
-    import cupy as cp
-    warmup_a = cp.random.rand(1000, 1000).astype(cp.float32)
-    warmup_b = cp.random.rand(1000, 1000).astype(cp.float32)
-    for _ in range(3):
-        _ = cp.matmul(warmup_a, warmup_b)
-    cp.cuda.stream.get_current_stream().synchronize()
+# Warm up the GPU to ensure fair timing comparison
+if 'cp' in globals() or 'cupy' in globals():
+    print("Performing GPU warmup...")
+    # Create small arrays and perform operations to warm up the GPU
+    warmup_a = cp.ones((2000, 2000), dtype=cp.float32)
+    warmup_b = cp.ones((2000, 2000), dtype=cp.float32)
+    for _ in range(5):  # Multiple warmup iterations
+        _ = cp.dot(warmup_a, warmup_b)
+    # Ensure GPU is synchronized before starting the timer
+    cp.cuda.Device().synchronize()
     print("GPU warmup completed")
-except Exception as gpu_err:
-    print(f"GPU warmup skipped: {{gpu_err}}")
 
-# Variables for run tracking
-iterations_completed = 0
-run_start_time = time.perf_counter()
-print(f"Start time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
+# Insert repetition logic for more measurable timing
+num_repetitions = 5
+print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+# Start timing only for the computation part
+start_time = time.perf_counter()
 
 try:
-    # First do a single run to estimate timing
-    start_time = time.perf_counter()
-    
-{indent_code(computation_lines, 4)}
-    
-    # Ensure GPU operations complete
-    try:
-        cp.cuda.stream.get_current_stream().synchronize()
-    except:
-        pass
+    # Run the computation multiple times to get measurable times
+    for rep in range(num_repetitions):
+"""
+        # Indent only the computation code
+        indented_code = "\n".join(["    " + line for line in computation_lines])
         
+        # Footer with timing and reporting that ensures GPU synchronization
+        footer = """
+        # Ensure all GPU operations are complete before stopping the timer
+        if 'cp' in globals() or 'cupy' in globals():
+            cp.cuda.Device().synchronize()
+    
     end_time = time.perf_counter()
-    single_run_time = end_time - start_time
-    
-    # Calculate needed runs (at least 3, at most 50)
-    if single_run_time < 0.001:
-        num_runs = MAX_RUNS  # Very fast operation, need many runs
-    else:
-        num_runs = min(MAX_RUNS, max(MIN_RUNS, int(TARGET_TIME / single_run_time)))
-        
-    print(f"Using {{num_runs}} iterations for accurate timing")
-    
-    # Main timing loop
-    start_time = time.perf_counter()
-    
-    for iteration in range(num_runs):
-{indent_code(computation_lines, 8)}
-        
-        # Track iterations
-        iterations_completed = iteration + 1
-        
-        # Synchronize GPU if available
-        try:
-            cp.cuda.stream.get_current_stream().synchronize()
-        except:
-            pass
-            
-    # Final timing
-    end_time = time.perf_counter()
-    total_time = end_time - start_time
-    avg_time = total_time / num_runs
-    
-    # Ensure we never report exactly 0
-    avg_time = max(0.0001, avg_time)
-    
-    print(f"End time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
-    print(f"TOTAL GPU EXECUTION TIME: {{avg_time:.6f}} seconds (averaged over {{num_runs}} runs)")
+    total_time = (end_time - start_time) / num_repetitions  # Average time per repetition
+    total_time = max(0.0001, total_time)  # Ensure we never report exactly 0
+    print(f"End time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"TOTAL GPU EXECUTION TIME: {total_time:.6f} seconds (averaged over {num_repetitions} runs)")
     print("✅ GPU benchmark completed successfully!")
 except Exception as e:
-    # Handle errors
     end_time = time.perf_counter()
-    runs_completed = max(1, iterations_completed)
-    total_time = end_time - start_time
-    avg_time = total_time / runs_completed
-    
-    # Ensure we never report exactly 0
-    avg_time = max(0.0001, avg_time)
-    
-    print(f"❌ GPU benchmark failed: {{str(e)}}")
-    print(f"TOTAL GPU EXECUTION TIME: {{avg_time:.6f}} seconds (partial completion, {{runs_completed}} runs)")
+    total_time = (end_time - start_time) / max(1, rep)  # Average time for completed repetitions
+    total_time = max(0.0001, total_time)  # Ensure we never report exactly 0
+    print(f"❌ GPU benchmark failed: {str(e)}")
+    print(f"TOTAL GPU EXECUTION TIME: {total_time:.6f} seconds (partial completion)")
 """
-        return gpu_wrapper
     else:
-        # CPU timing wrapper
-        cpu_wrapper = f"""
-{header}
+        # Add all imports and setup code first
+        setup_code = "\n".join(import_setup_lines)
+        
+        # CPU benchmark with timing only around computation
+        header += f"""
 {setup_code}
 
 # CPU Benchmark - Added by GPU Mentor
@@ -196,68 +169,39 @@ warnings.filterwarnings("ignore")
 print("="*50)
 print("CPU BENCHMARK EXECUTION")
 print("="*50)
-
-# Constants for timing control
-MIN_RUNS = 5
-MAX_RUNS = 100
-TARGET_TIME = 1.0  # seconds
-
-# Variables for run tracking
-iterations_completed = 0
-run_start_time = time.perf_counter()
-print(f"Start time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
+print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+# Run multiple iterations to get measurable times
+num_repetitions = 5
+# Start timing only for the computation part
+start_time = time.perf_counter()
 
 try:
-    # First do a single run to estimate timing
-    start_time = time.perf_counter()
-    
-{indent_code(computation_lines, 4)}
+    # Run the computation multiple times to get measurable times
+    for rep in range(num_repetitions):
+"""
+        # Indent only the computation code
+        indented_code = "\n".join(["    " + line for line in computation_lines])
+        
+        # Footer with timing and reporting
+        footer = """
+        pass  # End of repetition loop
     
     end_time = time.perf_counter()
-    single_run_time = end_time - start_time
-    
-    # Calculate needed runs (at least 3, at most 50)
-    if single_run_time < 0.001:
-        num_runs = MAX_RUNS  # Very fast operation, need many runs
-    else:
-        num_runs = min(MAX_RUNS, max(MIN_RUNS, int(TARGET_TIME / single_run_time)))
-        
-    print(f"Using {{num_runs}} iterations for accurate timing")
-    
-    # Main timing loop
-    start_time = time.perf_counter()
-    
-    for iteration in range(num_runs):
-{indent_code(computation_lines, 8)}
-        
-        # Track iterations
-        iterations_completed = iteration + 1
-            
-    # Final timing
-    end_time = time.perf_counter()
-    total_time = end_time - start_time
-    avg_time = total_time / num_runs
-    
-    # Ensure we never report exactly 0
-    avg_time = max(0.0001, avg_time)
-    
-    print(f"End time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
-    print(f"TOTAL CPU EXECUTION TIME: {{avg_time:.6f}} seconds (averaged over {{num_runs}} runs)")
+    total_time = (end_time - start_time) / num_repetitions  # Average time per repetition
+    total_time = max(0.0001, total_time)  # Ensure we never report exactly 0
+    print(f"End time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"TOTAL CPU EXECUTION TIME: {total_time:.6f} seconds (averaged over {num_repetitions} runs)")
     print("✅ CPU benchmark completed successfully!")
 except Exception as e:
-    # Handle errors
     end_time = time.perf_counter()
-    runs_completed = max(1, iterations_completed)
-    total_time = end_time - start_time
-    avg_time = total_time / runs_completed
-    
-    # Ensure we never report exactly 0
-    avg_time = max(0.0001, avg_time)
-    
-    print(f"❌ CPU benchmark failed: {{str(e)}}")
-    print(f"TOTAL CPU EXECUTION TIME: {{avg_time:.6f}} seconds (partial completion, {{runs_completed}} runs)")
+    total_time = (end_time - start_time) / max(1, rep)  # Average time for completed repetitions
+    total_time = max(0.0001, total_time)  # Ensure we never report exactly 0
+    print(f"❌ CPU benchmark failed: {str(e)}")
+    print(f"TOTAL CPU EXECUTION TIME: {total_time:.6f} seconds (partial completion)")
 """
-        return cpu_wrapper
+    
+    # Combine everything
+    return header + indented_code + footer
 
 def submit_slurm_job(script_path):
     result = subprocess.run(["sbatch", script_path], capture_output=True, text=True)
