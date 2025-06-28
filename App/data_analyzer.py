@@ -121,7 +121,7 @@ For each suggestion, provide:
 Format your response as a numbered list with clear titles and descriptions. Focus on practical, executable analyses that would work well with this specific dataset's structure and content."""
             
             # Get suggestions from RAG agent
-            response = self.rag_agent.chat(prompt)
+            response = self.rag_agent.query(prompt)
             
             return f"## 🔍 Suggested GPU-Accelerated Analyses\\n\\n{response}"
             
@@ -168,7 +168,7 @@ Focus on practical, working code that demonstrates GPU acceleration advantages. 
 Provide ONLY the Python code without any markdown formatting or explanation text - just clean, executable Python code."""
             
             # Get code from RAG agent
-            code_response = self.rag_agent.chat(prompt)
+            code_response = self.rag_agent.query(prompt)
             
             # Clean up the response to extract just the code
             code = self._extract_code_from_response(code_response)
@@ -187,7 +187,7 @@ Explain:
 
 Keep the explanation concise but informative, suitable for someone learning about GPU acceleration in data science."""
             
-            explanation = self.rag_agent.chat(explanation_prompt)
+            explanation = self.rag_agent.query(explanation_prompt)
             
             return code, explanation
             
