@@ -78,6 +78,14 @@ class GPUMentorApp:
         # Create interface
         # Custom CSS for better layout
         custom_css = """
+        /* Import IBM Plex Mono font */
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
+        
+        /* Apply IBM Plex Mono globally to everything */
+        * {
+            font-family: 'IBM Plex Mono', monospace !important;
+        }
+        
         .analysis-results {
             min-height: 300px;
             max-height: 500px;
@@ -88,13 +96,16 @@ class GPUMentorApp:
         }
         .execution-results {
             min-height: 200px;
-            max-height: 300px;
-            overflow-y: auto;
             border: 1px solid #d0d0d0;
             border-radius: 6px;
             padding: 12px;
-            font-family: 'Monaco', 'Consolas', monospace;
             font-size: 12px;
+        }
+        /* Ensure only the inner content of execution results scrolls */
+        .execution-results .gr-markdown {
+            max-height: 276px;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         .code-analysis-tab {
             height: 100vh;
@@ -139,11 +150,32 @@ class GPUMentorApp:
         }
         /* Make code editors more prominent with consistent styling */
         .gr-code {
-            font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+            /* Font already applied globally */
         }
         /* Ensure both code boxes have the same height */
         .code-input .gr-code, .code-output .gr-code {
             height: 400px;
+        }
+        /* Data Analyzer specific styles */
+        .suggestions-box {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .scrollable-markdown {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        .scrollable-markdown .gr-markdown {
+            max-height: 576px;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         """
         
@@ -193,9 +225,10 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                                 label="Your Question",
                                 scale=4
                             )
-                            submit_btn = gr.Button("Send", variant="primary", scale=1)
+                            with gr.Column(scale=1):
+                                submit_btn = gr.Button("⬆️ Send", variant="primary", scale=1)
+                                clear_btn = gr.Button("🧹 Clear Chat & Memory", variant="secondary")
                         
-                        clear_btn = gr.Button("🧹 Clear Chat & Memory", variant="secondary")
                     
                     with gr.Column(scale=1):
                         sample_dropdown = gr.Dropdown(
@@ -210,6 +243,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                             label="Code to Analyze (Optional)",
                             language="python",
                             lines=20,
+                            max_lines=30,
                             interactive=True
                         )
             
@@ -222,6 +256,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                             label="💻 Code to Analyze",
                             language="python",
                             lines=15,
+                            max_lines=35,
                             interactive=True,
                             elem_classes=["code-input"]
                         )
@@ -232,6 +267,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                             label="🚀 GPU-Optimized Code",
                             language="python",
                             lines=15,
+                            max_lines=35,
                             interactive=False,
                             elem_classes=["code-output"]
                         )
@@ -288,7 +324,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                 )
                 
                 # Bottom area: AI insights taking the rest of the space
-                with gr.Row():
+                with gr.Row(elem_classes=["auto-height"]):
                     analysis_results = gr.Markdown(
                         label="🧠 AI Analysis & Recommendations",
                         value="**Welcome to GPU Code Analysis!**\n\nSelect code from the samples above or paste your own Python code, then click 'Analyze Code' to see:\n- AI-powered analysis of your code\n- GPU optimization opportunities\n- Performance improvement suggestions\n- Best practices recommendations",

@@ -384,9 +384,9 @@ print("Fallback analysis completed successfully")"""
             # Always show results with static header (success/failure determined by warnings in error file)
             execution_time_text = f"{result['execution_time']:.3f} seconds" if result.get('execution_time') else "Unknown"
             
-            output_text = f"""## 📊 Analysis Results
+            output_text = f"""
 
-### Output:
+
 ```
 {result['output']}
 ```
@@ -422,10 +422,9 @@ print("Fallback analysis completed successfully")"""
         with gr.Row():
             # Left Column: Dataset Selection
             with gr.Column(scale=1):
-                gr.Markdown("### 📁 Dataset Selection")
                 dataset_dropdown = gr.Dropdown(
                     choices=["None"] + self.get_available_datasets(),
-                    label="Sample Datasets",
+                    label="📁 Sample Datasets",
                     value="None"
                 )
                 dataset_upload = gr.File(
@@ -433,10 +432,10 @@ print("Fallback analysis completed successfully")"""
                     file_types=[".csv"]
                 )
                 load_btn = gr.Button("📊 Load Dataset", variant="primary")
-                load_status = gr.Textbox(label="Status", interactive=False)
             
             # Right Column: AI Suggestions
             with gr.Column(scale=1):
+                load_status = gr.Textbox(label="Status", interactive=False)
                 gr.Markdown("### 🤖 AI-Generated Analysis Suggestions")
                 suggestions_btn = gr.Button("🔍 Generate Suggestions", variant="secondary", size="lg")
                 suggestions_output = gr.Markdown("Load a dataset and click 'Generate Suggestions' to get AI recommendations.", elem_classes=["suggestions-box"])
@@ -449,7 +448,7 @@ print("Fallback analysis completed successfully")"""
                 selected_topic = gr.Textbox(
                     label="Custom Data Analysis Task",
                     placeholder="Enter or copy one of the suggested analysis topics above...",
-                    lines=2
+                    lines=1
                 )
                 generate_code_btn = gr.Button("⚡ Generate Analysis", variant="secondary")
         
@@ -460,7 +459,7 @@ print("Fallback analysis completed successfully")"""
                     label="📝 Generated Python Code",
                     language="python",
                     lines=20,
-                    max_lines=25
+                    max_lines=35
                 )
             with gr.Column(scale=1):
                 code_explanation = gr.Markdown(
@@ -476,15 +475,23 @@ print("Fallback analysis completed successfully")"""
         # Results Section
         with gr.Row():
             with gr.Column(scale=1):
-                execution_output = gr.Markdown("### Execute analysis to see results")
+                execution_output = gr.Textbox(
+                    label="📊 Analysis Results:",
+                    lines=20,
+                    max_lines=35,
+                    interactive=False
+                )
+                # execution_output = gr.Markdown("### Execute analysis to see results")
             with gr.Column(scale=1):
                 plot_output = gr.Gallery(
                     label="📈 Generated Plots",
                     show_label=True,
                     elem_id="plot-gallery",
                     columns=1,
-                    rows=2,
-                    height="auto"
+                    rows=1,
+                    height=400,
+                    allow_preview=True,
+                    preview=True
                 )
     
         
