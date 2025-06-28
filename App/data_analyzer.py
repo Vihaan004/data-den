@@ -40,25 +40,9 @@ class DataAnalyzer:
                 self.current_dataset_path = dataset_path
                 dataset_name = dataset_file
             else:
-                return "❌ Please select a dataset or upload a file.", ""
+                return "❌ Please select a dataset or upload a file."
             
             self.current_dataset = df
-            
-            # Generate dataset info
-            info = f"""## 📊 Dataset: {dataset_name}
-            
-**Shape:** {df.shape[0]:,} rows × {df.shape[1]} columns
-**Size:** {df.memory_usage(deep=True).sum() / 1024**2:.2f} MB
-
-**Columns:**
-{self._format_column_info(df)}
-
-**Data Types:**
-{df.dtypes.to_string()}
-
-**Missing Values:**
-{df.isnull().sum().to_string()}
-"""
             
             # Store dataset info for LLM
             self.dataset_info = {
@@ -72,20 +56,10 @@ class DataAnalyzer:
                 "categorical_columns": df.select_dtypes(include=['object']).columns.tolist()
             }
             
-            return info, "✅ Dataset loaded successfully! You can now generate analysis suggestions."
+            return f"✅ Dataset '{dataset_name}' loaded successfully! Shape: {df.shape[0]:,} rows × {df.shape[1]} columns. You can now generate analysis suggestions."
             
         except Exception as e:
-            return f"❌ Error loading dataset: {str(e)}", ""
-    
-    def _format_column_info(self, df):
-        """Format column information nicely."""
-        column_info = []
-        for col in df.columns:
-            dtype = str(df[col].dtype)
-            unique_count = df[col].nunique()
-            null_count = df[col].isnull().sum()
-            column_info.append(f"• **{col}** ({dtype}) - {unique_count:,} unique, {null_count:,} nulls")
-        return "\n".join(column_info)
+            return f"❌ Error loading dataset: {str(e)}"
     
     def generate_suggestions(self):
         """Generate analysis suggestions using the RAG agent."""
@@ -397,8 +371,9 @@ print("Fallback analysis completed successfully")"""
         gr.Markdown("# 📊 Data Analysis")
         gr.Markdown("Upload datasets and perform GPU-accelerated analysis with AI-generated suggestions.")
         
-        # Dataset Selection Section
+        # Top Row: Dataset Selection and AI Suggestions
         with gr.Row():
+            # Left Column: Dataset Selection
             with gr.Column(scale=1):
                 gr.Markdown("### 📁 Dataset Selection")
                 dataset_dropdown = gr.Dropdown(
@@ -411,19 +386,15 @@ print("Fallback analysis completed successfully")"""
                     file_types=[".csv"]
                 )
                 load_btn = gr.Button("📊 Load Dataset", variant="primary")
-            
-            with gr.Column(scale=2):
-                dataset_info = gr.Markdown("### Dataset Info\\nNo dataset loaded.")
                 load_status = gr.Textbox(label="Status", interactive=False)
+            
+            # Right Column: AI Suggestions
+            with gr.Column(scale=1):
+                gr.Markdown("### 🤖 AI-Generated Analysis Suggestions")
+                suggestions_btn = gr.Button("🔍 Generate Suggestions", variant="secondary", size="lg")
+                suggestions_output = gr.Markdown("Load a dataset and click 'Generate Suggestions' to get AI recommendations.", elem_classes=["suggestions-box"])
         
         gr.Markdown("---")
-        
-        # Analysis Suggestions Section
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("### 🤖 AI-Generated Analysis Suggestions")
-                suggestions_btn = gr.Button("🔍 Generate Suggestions", variant="secondary")
-                suggestions_output = gr.Markdown("Click 'Generate Suggestions' to get AI recommendations.")
         
         # Code Generation Section
         with gr.Row():
@@ -462,7 +433,7 @@ print("Fallback analysis completed successfully")"""
         load_btn.click(
             fn=self.load_dataset,
             inputs=[dataset_dropdown, dataset_upload],
-            outputs=[dataset_info, load_status]
+            outputs=[load_status]
         )
         
         suggestions_btn.click(
