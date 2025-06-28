@@ -51,6 +51,7 @@ class DocumentLoader:
         self.docs = []
         self.doc_splits = []
         self.stats = KnowledgeBaseStats()
+        
     def load_documents(self) -> List[Document]:
         """Load documents from centralized knowledge directory."""
         print(f"📚 Loading documents from knowledge directory: {self.knowledge_dir}")
@@ -153,30 +154,52 @@ class DocumentLoader:
         return docs
         
     def _load_curated_content(self) -> List[Document]:
-        """Load curated GPU acceleration content and best practices."""
+        """Load curated GPU acceleration content."""
         docs = []
         
-        # Core GPU acceleration guide
-        gpu_guide = self._create_gpu_acceleration_guide()
-        docs.append(gpu_guide)
+        # Add curated GPU acceleration content
+        gpu_acceleration_content = """
+# GPU Acceleration with NVIDIA Rapids
+
+## CuPy Performance Patterns
+- Matrix operations show 5-50x speedup on GPU vs CPU
+- Best performance for arrays > 1M elements
+- Memory bandwidth is often the bottleneck
+- Use .astype() to ensure optimal data types (float32)
+- Kernel launch overhead affects small operations
+
+## cuDF Performance Benefits  
+- DataFrame operations can achieve 10-100x speedup
+- GroupBy operations scale excellently on GPU
+- String operations benefit significantly from GPU parallelization
+- Best for datasets > 100K rows
+- Memory management is crucial for large datasets
+
+## cuML Machine Learning Acceleration
+- K-Means clustering: 10-50x speedup typical
+- Random Forest: 5-25x speedup
+- Logistic Regression: 3-15x speedup
+- UMAP/t-SNE: 10-100x speedup for dimensionality reduction
+
+## Best Practices for GPU Acceleration
+1. Keep data on GPU between operations
+2. Use appropriate data types (prefer float32 over float64)
+3. Batch operations to amortize kernel launch overhead
+4. Profile memory usage and optimize transfers
+5. Use @cupy.fuse for element-wise operations
+6. Consider problem size - GPU overhead for small data
+
+## When NOT to use GPU
+- Very small datasets (< 10K elements)
+- Sequential algorithms that don't parallelize
+- Frequent CPU-GPU memory transfers
+- Operations dominated by I/O
+"""
+
+        docs.append(Document(page_content=gpu_acceleration_content, metadata={"source": "curated_gpu_guide"}))
         self.stats.curated_content += 1
         
-        # Performance optimization patterns
-        perf_guide = self._create_performance_guide()
-        docs.append(perf_guide)
-        self.stats.curated_content += 1
-        
-        # Common pitfalls and solutions
-        pitfalls_guide = self._create_pitfalls_guide()
-        docs.append(pitfalls_guide)
-        self.stats.curated_content += 1
-        
-        # Migration strategies
-        migration_guide = self._create_migration_guide()
-        docs.append(migration_guide)
-        self.stats.curated_content += 1
-        
-        print(f"� Added {len(docs)} curated content pieces")
+        print(f"📖 Added {len(docs)} curated content piece")
         return docs
     
     def split_documents(self, docs: List[Document]) -> List[Document]:
@@ -185,6 +208,7 @@ class DocumentLoader:
             chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
         )
         self.doc_splits = text_splitter.split_documents(docs)
+        self.stats.total_chunks = len(self.doc_splits)
         return self.doc_splits
 
 class VectorStore:

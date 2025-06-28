@@ -1,5 +1,3 @@
-# RAPIDS and GPU Acceleration Knowledge Sources
-# Official Documentation and API References
 https://docs.rapids.ai
 https://docs.rapids.ai/api/
 https://docs.rapids.ai/user-guide
@@ -11,22 +9,16 @@ https://cudf.readthedocs.io/en/stable/
 https://docs.rapids.ai/api/cudf/stable/
 https://cuml.readthedocs.io/en/stable/
 https://docs.rapids.ai/api/cuml/stable/
-
-# Performance and Benchmarking
 https://medium.com/cupy-team/announcing-cupy-v13-66979ee7fab0
 https://www.unum.cloud/blog/2022-01-26-cupy
 https://medium.com/rapids-ai/easy-cpu-gpu-arrays-and-dataframes-run-your-dask-code-where-youd-like-e349d92351d
 https://developer.nvidia.com/blog/rapids-cudf-accelerates-pandas-nearly-150x-with-zero-code-changes/
-
-# Tutorials and Learning Resources
 https://cbs-hpc.github.io/Tutorials/GPU/rapids_cuml/
 https://github.com/rapidsai/cuspatial/blob/branch-25.06/README.md
 https://rapidsai.github.io/cuxfilter/dataframe.html
 https://github.com/NVIDIA/cuda-python
 https://numba.pydata.org/numba-doc/0.13/CUDAJit.html
 https://www.cherryservers.com/blog/introduction-to-gpu-programming-with-cuda-and-python
-
-# Practical Examples and Community Resources
 https://github.com/jonnyelisha/Accelerating-End-to-End-Data-Science-Workflows-Nvidia
 https://github.com/shaowei-su/Python-Computing-Acceleration
 https://developer.nvidia.com/blog/rapids-the-rise-of-notebooks-extended/
