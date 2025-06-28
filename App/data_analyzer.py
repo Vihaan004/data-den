@@ -127,6 +127,11 @@ Format your response as a numbered list with clear titles and descriptions. Focu
             print(f"DEBUG: RAG agent response length: {len(response) if response else 0}")
             print(f"DEBUG: RAG agent response preview: {response[:200] if response else 'None'}...")
             
+            # If RAG agent returns empty response, provide fallback suggestions
+            if not response or len(response.strip()) == 0:
+                print("DEBUG: RAG agent returned empty response, using fallback suggestions")
+                response = self._get_fallback_suggestions()
+            
             return f"## 🔍 Suggested GPU-Accelerated Analyses\\n\\n{response}"
             
         except Exception as e:
@@ -379,3 +384,68 @@ Keep the explanation concise but informative, suitable for someone learning abou
             inputs=[generated_code],
             outputs=[execution_output, plot_output, execution_status]
         )
+    
+    def _get_fallback_suggestions(self):
+        """Provide fallback suggestions when RAG agent fails."""
+        if self.dataset_info is None:
+            return "❌ No dataset information available."
+        
+        # Analyze dataset characteristics to provide relevant suggestions
+        numeric_cols = len(self.dataset_info['numeric_columns'])
+        categorical_cols = len(self.dataset_info['categorical_columns'])
+        total_rows = self.dataset_info['shape'][0]
+        
+        suggestions = []
+        
+        # Suggest clustering if we have numeric data
+        if numeric_cols >= 2:
+            suggestions.append("""**1. K-Means Clustering Analysis**
+   - Segment your data into meaningful groups based on numeric features
+   - Why GPU acceleration helps: Massively parallel distance calculations and centroid updates
+   - Expected benefit: 10-50x speedup on large datasets with cuML""")
+        
+        # Suggest correlation analysis for multiple numeric columns
+        if numeric_cols >= 3:
+            suggestions.append("""**2. Correlation Matrix Analysis**
+   - Discover relationships between all numeric variables
+   - Why GPU acceleration helps: Parallel computation of pairwise correlations using cuDF
+   - Expected benefit: Faster matrix operations and memory bandwidth utilization""")
+        
+        # Suggest regression analysis
+        if numeric_cols >= 2:
+            suggestions.append("""**3. Linear/Logistic Regression Analysis**
+   - Build predictive models and analyze feature importance
+   - Why GPU acceleration helps: Matrix operations and gradient computations optimized for GPU
+   - Expected benefit: Faster model training with cuML, especially on large datasets""")
+        
+        # Suggest PCA for high-dimensional data
+        if numeric_cols >= 4:
+            suggestions.append("""**4. Principal Component Analysis (PCA)**
+   - Reduce dimensionality and visualize data patterns
+   - Why GPU acceleration helps: Parallel eigenvalue decomposition and matrix operations
+   - Expected benefit: Accelerated linear algebra operations with cuML""")
+        
+        # Suggest statistical aggregations
+        if categorical_cols >= 1 and numeric_cols >= 1:
+            suggestions.append("""**5. Statistical Aggregations by Groups**
+   - Calculate summary statistics grouped by categorical variables
+   - Why GPU acceleration helps: Parallel aggregation operations across groups
+   - Expected benefit: High-throughput data processing with cuDF groupby operations""")
+        
+        # Suggest random forest if we have enough features
+        if numeric_cols + categorical_cols >= 3:
+            suggestions.append("""**6. Random Forest Classification/Regression**
+   - Build ensemble models for prediction and feature ranking
+   - Why GPU acceleration helps: Parallel tree construction and prediction
+   - Expected benefit: Faster training and inference with cuML random forest""")
+        
+        # Always suggest data profiling
+        suggestions.append("""**7. Advanced Data Profiling and Statistics**
+   - Generate comprehensive dataset statistics and distributions
+   - Why GPU acceleration helps: Parallel computation of multiple statistical measures
+   - Expected benefit: Faster data exploration and quality assessment with cuDF""")
+        
+        if not suggestions:
+            return "Based on your dataset structure, consider uploading a dataset with more numeric columns for better GPU acceleration opportunities."
+        
+        return "\\n\\n".join(suggestions[:6])  # Return up to 6 suggestions
