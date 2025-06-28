@@ -322,12 +322,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                         error_msg = f"Error running benchmark: {str(e)}"
                         return error_msg, error_msg
 
-                # Enable Benchmark only if both code boxes are filled
-                def enable_benchmark(cpu, gpu):
-                    return bool(cpu.strip()) and bool(gpu.strip())
-                analyze_code.change(enable_benchmark, [analyze_code, optimized_code], benchmark_btn)
-                optimized_code.change(enable_benchmark, [analyze_code, optimized_code], benchmark_btn)
-
+                # Benchmark button click handler
                 benchmark_btn.click(
                     benchmark_handler,
                     inputs=[analyze_code, optimized_code],
