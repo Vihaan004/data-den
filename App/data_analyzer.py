@@ -436,8 +436,8 @@ print("Fallback analysis completed successfully")"""
             # Right Column: AI Suggestions
             with gr.Column(scale=1):
                 load_status = gr.Textbox(label="Status", interactive=False)
-                gr.Markdown("### 🤖 AI-Generated Analysis Suggestions")
-                suggestions_btn = gr.Button("🔍 Generate Suggestions", variant="secondary", size="lg")
+                gr.Markdown("### 🤖 AI-Generated Analysis Task Suggestions")
+                suggestions_btn = gr.Button("⚡ Generate Suggestions", variant="secondary", size="lg")
                 suggestions_output = gr.Markdown("Load a dataset and click 'Generate Suggestions' to get AI recommendations.", elem_classes=["suggestions-box"])
         
         gr.Markdown("---")
@@ -448,7 +448,7 @@ print("Fallback analysis completed successfully")"""
                 selected_topic = gr.Textbox(
                     label="Custom Data Analysis Task",
                     placeholder="Enter or copy one of the suggested analysis topics above...",
-                    lines=1
+                    max_lines=1
                 )
                 generate_code_btn = gr.Button("⚡ Generate Analysis", variant="secondary")
         

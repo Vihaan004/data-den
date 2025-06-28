@@ -78,12 +78,19 @@ class GPUMentorApp:
         # Create interface
         # Custom CSS for better layout
         custom_css = """
-        /* Import IBM Plex Mono font */
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
+        /* Import Roboto font */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@100;300;400;500;700;900;100i;300i;400i;500i;700i;900i&display=swap');
         
-        /* Apply IBM Plex Mono globally to everything */
-        * {
-            font-family: 'IBM Plex Mono', monospace !important;
+        /* Apply Roboto globally, but exclude code components */
+        *:not(.gr-code):not(.gr-code *):not(.cm-editor):not(.cm-editor *):not(.cm-content):not(.cm-content *) {
+            font-family: 'Roboto', sans-serif !important;
+        }
+        
+        /* Specifically target common UI elements */
+        .gr-button, .gr-textbox, .gr-dropdown, .gr-label, .gr-markdown, 
+        .gr-chatbot, .gr-tab, .gr-tab-item, .gr-tab-content,
+        input, textarea, select, button, h1, h2, h3, h4, h5, h6 {
+            font-family: 'Roboto', sans-serif !important;
         }
         
         .analysis-results {
@@ -93,6 +100,7 @@ class GPUMentorApp:
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             padding: 16px;
+            font-family: 'Roboto', sans-serif;
         }
         .execution-results {
             min-height: 200px;
@@ -100,6 +108,7 @@ class GPUMentorApp:
             border-radius: 6px;
             padding: 12px;
             font-size: 12px;
+            font-family: 'Roboto', sans-serif;
         }
         /* Ensure only the inner content of execution results scrolls */
         .execution-results .gr-markdown {
@@ -164,6 +173,7 @@ class GPUMentorApp:
             min-height: 200px;
             max-height: 400px;
             overflow-y: auto;
+            font-family: 'Roboto', sans-serif;
         }
         .scrollable-markdown {
             max-height: 600px;
@@ -171,11 +181,24 @@ class GPUMentorApp:
             border: 1px solid #d0d0d0;
             border-radius: 6px;
             padding: 12px;
+            font-family: 'Roboto', sans-serif;
         }
         .scrollable-markdown .gr-markdown {
             max-height: 576px;
             overflow-y: auto;
             overflow-x: hidden;
+        }
+        /* Notebook cards styling */
+        .gr-group {
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            padding: 16px !important;
+            margin: 8px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            transition: box-shadow 0.3s ease !important;
+        }
+        .gr-group:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
         }
         """
         
@@ -185,10 +208,10 @@ class GPUMentorApp:
             css=custom_css
         ) as interface:
             gr.Markdown("""
-            # 🚀 GPU Mentor - AI-Powered GPU Acceleration Assistant
+            # 🏗️ Data Den - The Intelligent GPU Acceleration Workspace
             
-            Learn how to accelerate your Python code using NVIDIA Rapids libraries (CuPy, cuDF, cuML).
-            Get AI-powered code optimization suggestions and educational guidance.
+            Learn how to accelerate data science using NVIDIA Rapids libraries (CuPy, cuDF, cuML).
+            AI-powered assistance, optimization, benchmarking, data analysis, tutorials, and educational guidance.
             """)
             
             with gr.Tab("💬 GPU Gossip"):
@@ -283,7 +306,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                     )
                     load_analysis_sample_btn = gr.Button("📥 Load Sample", variant="secondary", scale=1)
                     analyze_btn = gr.Button("🔍 Analyze Code", variant="primary", scale=2)
-                    benchmark_btn = gr.Button("⚡ Benchmark on Sol", variant="primary", scale=2)
+                    benchmark_btn = gr.Button("🚀 Benchmark on Sol", variant="primary", scale=2)
                     clear_code_btn = gr.Button("🗑️ Clear", variant="secondary", scale=1)
                 
                 # No longer needed - using only the markdown outputs below
@@ -293,14 +316,14 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                     with gr.Column(scale=1):
                         original_execution_output = gr.Markdown(
                             label="🖥️ Original Code Execution",
-                            value="**Original Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the original code on the Sol supercomputer and see timing results.",
+                            value="**Original Code Execution Results**\n\nClick '🚀 Benchmark on Sol' to execute the original code on the Sol supercomputer and see timing results.",
                             elem_classes=["execution-results"]
                         )
                     
                     with gr.Column(scale=1):
                         optimized_execution_output = gr.Markdown(
                             label="🚀 GPU Code Execution", 
-                            value="**GPU-Optimized Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the GPU-optimized code and compare performance.",
+                            value="**GPU-Optimized Code Execution Results**\n\nClick '🚀 Benchmark on Sol' to execute the GPU-optimized code and compare performance.",
                             elem_classes=["execution-results"]
                         )
 
@@ -324,14 +347,14 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                 )
                 
                 # Bottom area: AI insights taking the rest of the space
-                with gr.Row(elem_classes=["auto-height"]):
+                with gr.Row():
                     analysis_results = gr.Markdown(
                         label="🧠 AI Analysis & Recommendations",
                         value="**Welcome to GPU Code Analysis!**\n\nSelect code from the samples above or paste your own Python code, then click 'Analyze Code' to see:\n- AI-powered analysis of your code\n- GPU optimization opportunities\n- Performance improvement suggestions\n- Best practices recommendations",
                         elem_classes=["analysis-results"]
                     )
             
-            with gr.Tab("📊 Data Analysis"):
+            with gr.Tab("📊 Data Diving"):
                 self.data_analyzer.create_interface()
             
             with gr.Tab("📚 Tutorial Generator"):
@@ -351,10 +374,47 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                     height=400
                 )
             
-            with gr.Tab("📊 Execution Summary"):
+            with gr.Tab("✏️ Notebooks"):
+                gr.Markdown("### Your Saved Notebooks")
+                
+                # Grid of notebook cards
                 with gr.Row():
-                    summary_btn = gr.Button("Get Execution Summary", variant="primary")
-                    execution_summary = gr.Markdown(label="Execution Summary")
+                    with gr.Column(scale=1):
+                        with gr.Group():
+                            gr.Markdown("#### 🔬 **CuPy Matrix Operations**")
+                            gr.Markdown("*Last updated: 2025-06-27*")
+                            gr.Markdown("```\nExploring GPU-accelerated matrix operations using CuPy.\nCompare performance between NumPy and CuPy for large matrices.\nIncludes benchmarking and visualization examples.\n```")
+                    
+                    with gr.Column(scale=1):
+                        with gr.Group():
+                            gr.Markdown("#### 📊 **cuDF Data Analysis**")
+                            gr.Markdown("*Last updated: 2025-06-26*")
+                            gr.Markdown("```\nGPU-accelerated data analysis with cuDF library.\nDataFrame operations, groupby, and aggregations.\nMigration guide from pandas to cuDF.\n```")
+                    
+                    with gr.Column(scale=1):
+                        with gr.Group():
+                            gr.Markdown("#### 🤖 **cuML Machine Learning**")
+                            gr.Markdown("*Last updated: 2025-06-25*")
+                            gr.Markdown("```\nMachine learning algorithms on GPU using cuML.\nClassification, regression, and clustering examples.\nPerformance comparison with scikit-learn.\n```")
+                
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        with gr.Group():
+                            gr.Markdown("#### 🚀 **RAPIDS Integration**")
+                            gr.Markdown("*Last updated: 2025-06-24*")
+                            gr.Markdown("```\nEnd-to-end data science pipeline with RAPIDS.\nData loading, preprocessing, modeling, and visualization.\nComplete workflow optimization for GPU acceleration.\n```")
+                    
+                    with gr.Column(scale=1):
+                        with gr.Group():
+                            gr.Markdown("#### ⚡ **Performance Benchmarking**")
+                            gr.Markdown("*Last updated: 2025-06-23*")
+                            gr.Markdown("```\nComprehensive benchmarking suite for GPU operations.\nTiming comparisons, memory usage analysis.\nVisualization of performance improvements.\n```")
+                    
+                    with gr.Column(scale=1):
+                        with gr.Group():
+                            gr.Markdown("#### 🎯 **Optimization Strategies**")
+                            gr.Markdown("*Last updated: 2025-06-22*")
+                            gr.Markdown("```\nBest practices for GPU acceleration in Python.\nMemory management, kernel optimization.\nCommon pitfalls and how to avoid them.\n```")
             
             # Event handlers
             def load_sample_code(sample_name):
@@ -449,11 +509,6 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                 generate_tutorial_content,
                 inputs=[tutorial_topic],
                 outputs=[tutorial_content]
-            )
-            
-            summary_btn.click(
-                self.gpu_mentor.get_execution_summary,
-                outputs=[execution_summary]
             )
         
         return interface
