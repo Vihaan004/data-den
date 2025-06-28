@@ -338,16 +338,21 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                     )
             
             with gr.Tab("📚 Learning Resources"):
+                # Top row: Tutorial topic input and generate button taking full width
                 with gr.Row():
-                    with gr.Column():
-                        tutorial_topic = gr.Textbox(
-                            placeholder="e.g., CuPy array operations, cuDF dataframes, cuML machine learning",
-                            label="Tutorial Topic"
-                        )
-                        generate_tutorial_btn = gr.Button("Generate Tutorial", variant="primary")
-                    
-                    with gr.Column():
-                        tutorial_content = gr.Markdown(label="Tutorial Content")
+                    tutorial_topic = gr.Textbox(
+                        placeholder="e.g., CuPy array operations, cuDF dataframes, cuML machine learning",
+                        label="Tutorial Topic",
+                        scale=4
+                    )
+                    generate_tutorial_btn = gr.Button("Generate Tutorial", variant="primary", scale=1)
+                
+                # Tutorial content below taking full width
+                tutorial_content = gr.Markdown(
+                    label="Tutorial Content",
+                    value="**Welcome to Learning Resources!**\n\nEnter a topic above and click 'Generate Tutorial' to get customized learning content about GPU acceleration with NVIDIA Rapids libraries.\n\n**Example topics:**\n- CuPy array operations and NumPy conversion\n- cuDF DataFrame manipulation and Pandas migration\n- cuML machine learning algorithms and scikit-learn equivalents\n- Memory management in GPU computing\n- Performance optimization techniques",
+                    height=400
+                )
             
             with gr.Tab("📊 Execution Summary"):
                 with gr.Row():
@@ -359,6 +364,22 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                 if sample_name and sample_name in sample_codes:
                     return sample_codes[sample_name]
                 return ""
+            
+            def generate_tutorial_with_indicator(topic):
+                """Generate tutorial with processing indicator."""
+                if not topic.strip():
+                    return "**Please enter a tutorial topic above.**\n\nExample topics:\n- CuPy array operations and NumPy conversion\n- cuDF DataFrame manipulation and Pandas migration\n- cuML machine learning algorithms and scikit-learn equivalents\n- Memory management in GPU computing\n- Performance optimization techniques"
+                
+                # Show simple processing indicator
+                return "⏱️ Processing..."
+            
+            def generate_tutorial_content(topic):
+                """Generate the actual tutorial content."""
+                if not topic.strip():
+                    return "**Please enter a tutorial topic above.**\n\nExample topics:\n- CuPy array operations and NumPy conversion\n- cuDF DataFrame manipulation and Pandas migration\n- cuML machine learning algorithms and scikit-learn equivalents\n- Memory management in GPU computing\n- Performance optimization techniques"
+                
+                # Generate the actual tutorial content
+                return self.gpu_mentor.get_tutorial_content(topic)
             
             def clear_chat():
                 # Clear conversation memory in the RAG agent
@@ -422,8 +443,13 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
             
             # Benchmark button already wired up above
             
+            # Tutorial generation with processing indicator
             generate_tutorial_btn.click(
-                self.gpu_mentor.get_tutorial_content,
+                generate_tutorial_with_indicator,
+                inputs=[tutorial_topic],
+                outputs=[tutorial_content]
+            ).then(
+                generate_tutorial_content,
                 inputs=[tutorial_topic],
                 outputs=[tutorial_content]
             )
