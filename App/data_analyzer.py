@@ -183,7 +183,27 @@ MATPLOTLIB PLOTTING WITH cuDF:
 - For machine learning with cuML, convert to cupy arrays: gdf['column'].to_cupy()
 - Example: plt.scatter(gdf['x'].to_numpy(), gdf['y'].to_numpy())
 
+CRITICAL DATA TYPE HANDLING RULES:
+- cuML algorithms return numpy arrays or cupy arrays, NOT pandas/cuDF objects
+- NEVER call .to_pandas() on machine learning results (predictions, transformed data, etc.)
+- cuML LinearRegression.predict() returns numpy.ndarray - use directly: plt.plot(x, predictions)
+- cuML KMeans.labels_ returns cupy array - convert with: labels.get() for numpy or cp.asnumpy(labels)
+- cuML PCA.transform() returns cupy array - convert with: transformed.get() for numpy
+- Only use .to_pandas() on cuDF Series/DataFrames, never on numpy arrays or cuML outputs
+- Check data types before conversion: print(type(variable), variable.dtype if hasattr(variable, 'dtype') else 'no dtype')
+
+COMMON ERRORS TO AVOID:
+- ❌ predictions.to_pandas() when predictions is numpy.ndarray
+- ❌ labels.to_pandas() when labels is cupy.ndarray  
+- ❌ transformed_data.to_pandas() when transformed_data is cupy.ndarray
+- ✅ gdf['column'].to_pandas() when gdf['column'] is cudf.Series
+- ✅ predictions (direct use when it's already numpy.ndarray)
+- ✅ labels.get() when labels is cupy.ndarray and you need numpy
+- ✅ cp.asnumpy(cupy_array) to convert cupy to numpy
+
 Generate a complete, standalone Python script:
+
+REMEMBER: Machine learning algorithms (LinearRegression, KMeans, PCA) return numpy/cupy arrays, NOT pandas/cuDF objects. Use these outputs directly for plotting - never call .to_pandas() on them!
 
 EXAMPLE STRUCTURE:
 ```python
@@ -191,6 +211,7 @@ import pandas as pd
 import cudf
 import matplotlib.pyplot as plt
 import numpy as np
+import cupy as cp
 from cuml.linear_model import LinearRegression  # Import specific algorithms
 
 # Load dataset
@@ -208,12 +229,31 @@ numeric_df = df[numeric_columns]
 gdf = cudf.from_pandas(numeric_df)
 print("Numeric data converted to cuDF format")
 
-# Your analysis code here
-# Use gdf.corr() for correlations (only numeric data in gdf)
-# Use proper cuML imports for machine learning algorithms  
-# For plotting: use gdf['column'].to_numpy() to convert cuDF to numpy
-# Handle string columns separately with pandas if needed
-# Create visualizations with plt.savefig('filename.png') NOT plt.show()
+# Example: Machine Learning with proper data type handling
+if len(numeric_columns) >= 2:
+    # Prepare features and target
+    X = gdf[numeric_columns[:-1]]  # All but last column as features
+    y = gdf[numeric_columns[-1]]   # Last column as target
+    
+    # Train model
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    # Make predictions - this returns numpy.ndarray, NOT cuDF!
+    predictions = model.predict(X)
+    print(f"Predictions type: {{type(predictions)}}")  # Will be numpy.ndarray
+    
+    # Plot results - use predictions directly (it's already numpy)
+    plt.figure(figsize=(10, 6))
+    plt.scatter(gdf[numeric_columns[0]].to_numpy(), y.to_numpy(), alpha=0.5, label='Actual')
+    plt.scatter(gdf[numeric_columns[0]].to_numpy(), predictions, alpha=0.7, label='Predicted')
+    # NOTE: predictions is numpy.ndarray, use directly - NO .to_pandas()!
+    plt.xlabel(numeric_columns[0])
+    plt.ylabel(numeric_columns[-1])
+    plt.legend()
+    plt.title('Linear Regression Results')
+    plt.savefig('regression_results.png', dpi=150, bbox_inches='tight')
+    plt.close()
 
 print("Analysis completed successfully")
 ```"""
@@ -335,6 +375,9 @@ print("Fallback analysis completed successfully")"""
             return "❌ Please generate code first.", None
         
         try:
+            # Clean output directory before running new analysis
+            self.clean_output_directory()
+            
             # Run the analysis job
             result = run_data_analysis(code, self.current_dataset_path, "./output")
             
@@ -486,3 +529,21 @@ print("Fallback analysis completed successfully")"""
             suggestions.append("5. Data Distribution Analysis")
         
         return "\n".join(suggestions[:5])  # Return exactly 5 suggestions
+    
+    def clean_output_directory(self):
+        """Clean all PNG files from the output directory."""
+        try:
+            output_dir = "./output"
+            if os.path.exists(output_dir):
+                png_files = glob.glob(os.path.join(output_dir, "*.png"))
+                for png_file in png_files:
+                    try:
+                        os.remove(png_file)
+                        print(f"Cleaned: {os.path.basename(png_file)}")
+                    except Exception as e:
+                        print(f"Warning: Could not remove {png_file}: {e}")
+                print(f"Cleaned {len(png_files)} PNG files from output directory")
+            else:
+                print("Output directory does not exist")
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
