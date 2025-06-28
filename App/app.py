@@ -154,19 +154,38 @@ print(f"Labels shape: {labels.shape}")"""
         .gradio-container {
             max-width: 100% !important;
         }
-        /* Enhanced code editor styling */
-        .code-input .cm-editor {
+        /* Enhanced code editor styling for consistent appearance */
+        .code-input .cm-editor, .code-output .cm-editor {
             border: 2px solid #3b82f6;
             border-radius: 8px;
+            min-height: 400px;
+            background-color: #1e293b !important;
         }
         .code-output .cm-editor {
-            border: 2px solid #10b981;
-            border-radius: 8px;
-            background-color: #f8fafc;
+            border-color: #10b981;
         }
-        /* Make code editors more prominent */
+        /* Ensure consistent dark theme for both code editors */
+        .code-input .cm-content, .code-output .cm-content {
+            background-color: #1e293b !important;
+            color: #e2e8f0 !important;
+        }
+        .code-input .cm-focused, .code-output .cm-focused {
+            background-color: #1e293b !important;
+        }
+        /* Override any white backgrounds */
+        .gr-code .cm-editor .cm-scroller {
+            background-color: #1e293b !important;
+        }
+        .gr-code .cm-editor {
+            background-color: #1e293b !important;
+        }
+        /* Make code editors more prominent with consistent styling */
         .gr-code {
             font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        }
+        /* Ensure both code boxes have the same height */
+        .code-input .gr-code, .code-output .gr-code {
+            height: 400px;
         }
         """
         
@@ -251,7 +270,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                     
                     with gr.Column(scale=1):
                         optimized_code = gr.Code(
-                            value="",
+                            value="# GPU-optimized code will appear here after analysis...\n# Click 'Analyze Code' to see the optimized version",
                             label="🚀 GPU-Optimized Code",
                             language="python",
                             lines=15,
@@ -369,7 +388,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                 }]
             
             def clear_code():
-                return "", ""  # Clear both code input and optimized code
+                return "", "# GPU-optimized code will appear here after analysis...\n# Click 'Analyze Code' to see the optimized version"  # Clear input, reset output with placeholder
             
             def clear_execution_results():
                 original_msg = "**Original Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the original code on the Sol supercomputer and see timing results."
