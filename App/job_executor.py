@@ -23,7 +23,7 @@ print("="*50)
 print("DATA ANALYSIS EXECUTION")
 print("="*50)
 print(f"Execution start time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
-print(f"Working directory: {{os.getcwd()}}")
+# print(f"Working directory: {{os.getcwd()}}")
 
 # Start timing
 start_time = time.perf_counter()

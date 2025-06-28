@@ -295,10 +295,10 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                         elem_classes=["analysis-results"]
                     )
             
-            with gr.Tab("� Data Analysis"):
+            with gr.Tab("📊 Data Analysis"):
                 self.data_analyzer.create_interface()
             
-            with gr.Tab("�📚 Tutorial Generator"):
+            with gr.Tab("📚 Tutorial Generator"):
                 # Top row: Tutorial topic input and generate button taking full width
                 with gr.Row():
                     tutorial_topic = gr.Textbox(

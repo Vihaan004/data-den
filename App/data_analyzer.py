@@ -416,8 +416,7 @@ print("Fallback analysis completed successfully")"""
     
     def create_interface(self):
         """Create the Gradio interface for data analysis."""
-        gr.Markdown("# 📊 Data Analysis")
-        gr.Markdown("Upload datasets and perform GPU-accelerated analysis with AI-generated suggestions.")
+        gr.Markdown("Upload datasets and perform GPU-accelerated analysis with AI-generated suggestions and tasks.")
         
         # Top Row: Dataset Selection and AI Suggestions
         with gr.Row():
@@ -448,7 +447,7 @@ print("Fallback analysis completed successfully")"""
         with gr.Row():
             with gr.Column():
                 selected_topic = gr.Textbox(
-                    label="Selected Analysis Topic",
+                    label="Custom Data Analysis Task",
                     placeholder="Enter or copy one of the suggested analysis topics above...",
                     lines=2
                 )
@@ -456,14 +455,19 @@ print("Fallback analysis completed successfully")"""
         
         # Generated Code and Explanation
         with gr.Row():
-            with gr.Column(scale=2):
+            with gr.Column(scale=1):
                 generated_code = gr.Code(
                     label="📝 Generated Python Code",
                     language="python",
-                    lines=20
+                    lines=20,
+                    max_lines=25
                 )
             with gr.Column(scale=1):
-                code_explanation = gr.Markdown("### Analysis Overview:")
+                code_explanation = gr.Markdown(
+                    value="### Analysis Overview:",
+                    max_height=600,
+                    elem_classes=["scrollable-markdown"]
+                )
         
         # Execution Section
         with gr.Row():
@@ -471,7 +475,7 @@ print("Fallback analysis completed successfully")"""
         
         # Results Section
         with gr.Row():
-            with gr.Column(scale=2):
+            with gr.Column(scale=1):
                 execution_output = gr.Markdown("### Execute analysis to see results")
             with gr.Column(scale=1):
                 plot_output = gr.Gallery(
