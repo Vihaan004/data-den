@@ -207,23 +207,6 @@ python {py_file.name}
         job_id = submit_slurm_job(str(sh_file))
         print(f"Submitted job {job_id}")
         
-        # Rename files to include job ID for easier tracking
-        py_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.py"
-        sh_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.sh"
-        out_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.out"
-        err_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.err"
-        
-        # Rename the files to include job ID
-        try:
-            py_file.rename(py_file_with_jobid)
-            sh_file.rename(sh_file_with_jobid)
-            py_file = py_file_with_jobid
-            sh_file = sh_file_with_jobid
-            out_file = out_file_with_jobid
-            err_file = err_file_with_jobid
-        except Exception as rename_err:
-            print(f"Warning: Could not rename files with job ID: {rename_err}")
-        
         # Wait for completion
         if wait_for_job(job_id, timeout=600):  # 10 minute timeout
             # Read output
@@ -251,14 +234,7 @@ python {py_file.name}
                 "error": error,
                 "execution_time": execution_time,
                 "plots": plots,
-                "job_id": job_id,
-                "timestamp": timestamp,
-                "files": {
-                    "python": str(py_file),
-                    "script": str(sh_file),
-                    "output": str(out_file),
-                    "error": str(err_file)
-                }
+                "job_id": job_id
             }
         else:
             return {
@@ -267,14 +243,7 @@ python {py_file.name}
                 "error": "Job execution exceeded 10 minute timeout",
                 "execution_time": None,
                 "plots": [],
-                "job_id": job_id,
-                "timestamp": timestamp,
-                "files": {
-                    "python": str(py_file),
-                    "script": str(sh_file),
-                    "output": str(out_file),
-                    "error": str(err_file)
-                }
+                "job_id": job_id
             }
     
     except Exception as e:
@@ -284,7 +253,5 @@ python {py_file.name}
             "error": str(e),
             "execution_time": None,
             "plots": [],
-            "job_id": None,
-            "timestamp": timestamp,
-            "files": {}
+            "job_id": None
         }

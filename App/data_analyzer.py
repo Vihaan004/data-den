@@ -85,7 +85,7 @@ class DataAnalyzer:
             unique_count = df[col].nunique()
             null_count = df[col].isnull().sum()
             column_info.append(f"• **{col}** ({dtype}) - {unique_count:,} unique, {null_count:,} nulls")
-        return "\\n".join(column_info)
+        return "\n".join(column_info)
     
     def generate_suggestions(self):
         """Generate analysis suggestions using the RAG agent."""
@@ -131,7 +131,7 @@ Provide ONLY a numbered list of 5 simple analysis tasks that could be performed 
                 print("DEBUG: Using simple fallback suggestions")
                 response = self._get_simple_fallback_suggestions()
             
-            return f"## 🔍 Suggested GPU-Accelerated Analyses\\n\\n{response}"
+            return f"## 🔍 Suggested GPU-Accelerated Analyses\n\n{response}"
             
         except Exception as e:
             return f"❌ Error generating suggestions: {str(e)}"
@@ -316,14 +316,8 @@ print("Fallback analysis completed successfully")"""
             
             # Always show results with static header (success/failure determined by warnings in error file)
             execution_time_text = f"{result['execution_time']:.3f} seconds" if result.get('execution_time') else "Unknown"
-            job_id_text = result.get('job_id', 'N/A')
-            timestamp_text = result.get('timestamp', 'N/A')
             
             output_text = f"""## 📊 Analysis Results
-
-**Execution Time:** {execution_time_text}
-**SLURM Job ID:** {job_id_text}
-**File Timestamp:** {timestamp_text}
 
 ### Output:
 ```
@@ -413,8 +407,7 @@ print("Fallback analysis completed successfully")"""
                 execution_output = gr.Markdown("### Execution Results\\nExecute code to see results.")
             with gr.Column(scale=1):
                 plot_output = gr.Image(label="📈 Generated Plots")
-        
-        execution_status = gr.Textbox(label="Execution Status", interactive=False)
+    
         
         # Event handlers
         load_btn.click(
@@ -472,4 +465,4 @@ print("Fallback analysis completed successfully")"""
         if len(suggestions) < 5:
             suggestions.append("5. Data Distribution Analysis")
         
-        return "\\n".join(suggestions[:5])  # Return exactly 5 suggestions
+        return "\n".join(suggestions[:5])  # Return exactly 5 suggestions
