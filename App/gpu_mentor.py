@@ -252,19 +252,21 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
             results = run_benchmark(original_code, optimized_code, "/home/vpatel69/R1/App/output")
             
             # Format CPU code results
+            cpu_success = "TOTAL CPU EXECUTION TIME" in results["cpu"]["stdout"]
             original_result = {
-                "status": "completed" if results["cpu"]["stdout"] else "failed",
+                "status": "completed" if cpu_success else "failed",
                 "stdout": results["cpu"]["stdout"],
-                "stderr": results["cpu"]["stderr"],
+                "stderr": "", # Removing stderr from output display
                 "execution_time": self._extract_execution_time(results["cpu"]["stdout"])
             }
             original_output = self._format_execution_result(original_result, "Original CPU Code")
             
             # Format GPU code results
+            gpu_success = "TOTAL GPU EXECUTION TIME" in results["gpu"]["stdout"]
             optimized_result = {
-                "status": "completed" if results["gpu"]["stdout"] else "failed",
+                "status": "completed" if gpu_success else "failed",
                 "stdout": results["gpu"]["stdout"],
-                "stderr": results["gpu"]["stderr"],
+                "stderr": "", # Removing stderr from output display
                 "execution_time": self._extract_execution_time(results["gpu"]["stdout"])
             }
             optimized_output = self._format_execution_result(optimized_result, "GPU-Optimized Code")
@@ -288,18 +290,22 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
         time_match = re.search(r"TOTAL (?:CPU|GPU) EXECUTION TIME: (\d+\.\d+)", output)
         if time_match:
             return float(time_match.group(1))
+            
+        # As a fallback, look for any floating point number followed by "seconds"
+        time_match = re.search(r"(\d+\.\d+)\s*seconds", output)
+        if time_match:
+            return float(time_match.group(1))
+            
         return None
     
     def _format_execution_result(self, result: Dict, code_type: str) -> str:
-        """Format execution result for display."""
+        """Format execution result for display without error output."""
         if not result:
             return f"**{code_type} - No Results**\n\nExecution not started or failed to submit."
         
         status = result.get("status", "unknown")
         execution_time = result.get("execution_time")
         stdout = result.get("stdout", "")
-        stderr = result.get("stderr", "")
-        error = result.get("error", "")
         
         # Build formatted output
         output_parts = [f"**🏃‍♂️ {code_type} - Execution Results**\n"]
@@ -309,10 +315,6 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
             output_parts.append(f"✅ **Status**: Completed Successfully")
             if execution_time is not None:
                 output_parts.append(f"⏱️ **Execution Time**: {execution_time:.4f} seconds")
-        elif status == "failed":
-            output_parts.append(f"❌ **Status**: Failed")
-            if execution_time is not None:
-                output_parts.append(f"⏱️ **Time Before Error**: {execution_time:.4f} seconds")
         else:
             output_parts.append(f"⏳ **Status**: {status.title()}")
         
@@ -325,35 +327,27 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
             # Clean up the output to show only the relevant parts
             lines = stdout.split('\n')
             relevant_lines = []
-            capture = False
             
+            # Filter lines to only show meaningful output, not error messages
             for line in lines:
-                if "Starting execution:" in line:
-                    capture = True
-                elif "Execution completed successfully" in line or "Execution failed with error:" in line:
-                    capture = False
-                elif capture and not line.startswith("="):
+                if any(marker in line for marker in ["BENCHMARK EXECUTION", "TOTAL", "Start time:", "End time:", "✅"]):
                     relevant_lines.append(line)
             
             if relevant_lines:
                 output_parts.append('\n'.join(relevant_lines))
             else:
-                output_parts.append(stdout)
+                # Fallback to showing just the execution time line if we can find it
+                time_line = next((line for line in lines if "EXECUTION TIME" in line), None)
+                if time_line:
+                    output_parts.append(time_line)
+                else:
+                    output_parts.append("No timing information available.")
             output_parts.append("```")
             output_parts.append("")
         
-        # Error output
-        if stderr:
-            output_parts.append("**⚠️ Error Output:**")
-            output_parts.append("```")
-            output_parts.append(stderr)
-            output_parts.append("```")
-            output_parts.append("")
-        
-        # Job submission error
-        if error:
-            output_parts.append("**❌ Execution Error:**")
-            output_parts.append(f"```\n{error}\n```")
+        # Job error notification (without showing actual errors)
+        if status != "completed":
+            output_parts.append("**Note**: The job did not complete successfully. Check your code for errors.")
         
         return '\n'.join(output_parts)
     

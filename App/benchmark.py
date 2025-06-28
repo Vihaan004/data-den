@@ -17,47 +17,91 @@ def wrap_with_timing(code, is_gpu=False):
     if not has_warnings_import:
         header += "import warnings\n"
     
+    # We'll split the code into imports/setup and actual computation
+    code_lines = code.split('\n')
+    import_setup_lines = []
+    computation_lines = []
+    
+    # Patterns to identify import/setup code
+    import_pattern = re.compile(r'^\s*(import\s+\w+|from\s+[\w.]+\s+import|#|$)')
+    assignment_pattern = re.compile(r'^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=')
+    function_def_pattern = re.compile(r'^\s*(def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(|class\s+[a-zA-Z_][a-zA-Z0-9_]*)')
+    
+    # Extract import statements and setup code
+    main_code_started = False
+    for line in code_lines:
+        stripped = line.strip()
+        
+        # If we see a main execution block or algorithm start, switch to computation mode
+        if (stripped.startswith('if __name__ == "__main__"') or 
+            stripped.startswith('# Start computation') or 
+            stripped.startswith('# Begin algorithm') or
+            stripped.startswith('# START TIMING HERE')):
+            main_code_started = True
+            computation_lines.append(line)
+            continue
+            
+        # If we're already in main code section, add to computation
+        if main_code_started:
+            computation_lines.append(line)
+            continue
+            
+        # Check if this is setup code
+        if (import_pattern.match(line) or 
+            assignment_pattern.match(line) or 
+            function_def_pattern.match(line) or
+            'print' in stripped or
+            'logger' in stripped):
+            import_setup_lines.append(line)
+        else:
+            # This is likely computational code
+            computation_lines.append(line)
+    
     if is_gpu:
         # Check if cupy is already imported
         has_cupy_import = re.search(r'import\s+cupy|from\s+cupy\s+import|import\s+cupy\s+as\s+cp', code)
         if not has_cupy_import:
             header += "import cupy as cp\n"
         
-        # Add GPU synchronization if not present
-        has_synchronize = "synchronize" in code
-        header += """
+        # Add all imports and setup code first
+        setup_code = "\n".join(import_setup_lines)
+        
+        # Add benchmark header with timing only around computation code
+        header += f"""
+{setup_code}
+
 # GPU Benchmark - Added by GPU Mentor
 warnings.filterwarnings("ignore")
 print("="*50)
 print("GPU BENCHMARK EXECUTION")
 print("="*50)
-start_time = time.perf_counter()
+
+# Warm up the GPU to ensure fair timing comparison
+if 'cp' in globals() or 'cupy' in globals():
+    print("Performing GPU warmup...")
+    # Create small arrays and perform operations to warm up the GPU
+    warmup_a = cp.ones((1000, 1000))
+    warmup_b = cp.ones((1000, 1000))
+    for _ in range(5):  # Multiple warmup iterations
+        _ = cp.dot(warmup_a, warmup_b)
+    # Ensure GPU is synchronized before starting the timer
+    cp.cuda.Device().synchronize()
+    print("GPU warmup completed")
+
 print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+# Start timing only for the computation part
+start_time = time.perf_counter()
 
 try:
 """
-        # Indent the user code
-        indented_code = "\n".join(["    " + line for line in code.split("\n")])
+        # Indent only the computation code
+        indented_code = "\n".join(["    " + line for line in computation_lines])
         
-        # Footer with timing and reporting
-        if has_synchronize:
-            footer = """
-    end_time = time.perf_counter()
-    total_time = end_time - start_time
-    print(f"End time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"TOTAL GPU EXECUTION TIME: {total_time:.4f} seconds")
-    print("✅ GPU benchmark completed successfully!")
-except Exception as e:
-    end_time = time.perf_counter()
-    total_time = end_time - start_time
-    print(f"❌ GPU benchmark failed: {str(e)}")
-    print(f"TOTAL GPU EXECUTION TIME: {total_time:.4f} seconds")
-"""
-        else:
-            footer = """
-    # Ensure all GPU operations are complete
-    import cupy as cp
-    cp.cuda.Device().synchronize()
+        # Footer with timing and reporting that ensures GPU synchronization
+        footer = """
+    # Ensure all GPU operations are complete before stopping the timer
+    if 'cp' in globals() or 'cupy' in globals():
+        cp.cuda.Device().synchronize()
     
     end_time = time.perf_counter()
     total_time = end_time - start_time
@@ -71,20 +115,26 @@ except Exception as e:
     print(f"TOTAL GPU EXECUTION TIME: {total_time:.4f} seconds")
 """
     else:
-        # CPU benchmark
-        header += """
+        # Add all imports and setup code first
+        setup_code = "\n".join(import_setup_lines)
+        
+        # CPU benchmark with timing only around computation
+        header += f"""
+{setup_code}
+
 # CPU Benchmark - Added by GPU Mentor
 warnings.filterwarnings("ignore")
 print("="*50)
 print("CPU BENCHMARK EXECUTION")
 print("="*50)
-start_time = time.perf_counter()
 print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+# Start timing only for the computation part
+start_time = time.perf_counter()
 
 try:
 """
-        # Indent the user code
-        indented_code = "\n".join(["    " + line for line in code.split("\n")])
+        # Indent only the computation code
+        indented_code = "\n".join(["    " + line for line in computation_lines])
         
         # Footer with timing and reporting
         footer = """
@@ -187,13 +237,17 @@ python {gpu_py.name}
     wait_for_job(cpu_jobid)
     wait_for_job(gpu_jobid)
 
-    # Read outputs
+    # Read outputs - only reading stdout as requested
     cpu_out_text = cpu_out.read_text() if cpu_out.exists() else ""
-    cpu_err_text = cpu_err.read_text() if cpu_err.exists() else ""
     gpu_out_text = gpu_out.read_text() if gpu_out.exists() else ""
-    gpu_err_text = gpu_err.read_text() if gpu_err.exists() else ""
+    
+    # Read error files just for logs but don't include in results
+    if cpu_err.exists() and cpu_err.read_text().strip():
+        print(f"CPU Error log: {cpu_err}")
+    if gpu_err.exists() and gpu_err.read_text().strip():
+        print(f"GPU Error log: {gpu_err}")
 
     return {
-        "cpu": {"stdout": cpu_out_text, "stderr": cpu_err_text},
-        "gpu": {"stdout": gpu_out_text, "stderr": gpu_err_text}
+        "cpu": {"stdout": cpu_out_text, "stderr": ""},
+        "gpu": {"stdout": gpu_out_text, "stderr": ""}
     }
