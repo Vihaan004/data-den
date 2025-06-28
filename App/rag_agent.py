@@ -286,18 +286,9 @@ class RAGAgent:
                 print("DEBUG: Fallback to general chat")
                 response = self._handle_general_chat(question)
             
-            # Add conversation memory indicator if context was used
-            if conversation_context_used and response and len(self.conversation_memory) > 0:
-                response = f"💭 *Using conversation memory from {len(self.conversation_memory)} previous exchange(s)*\n\n{response}"
-            
             # Add this exchange to conversation memory
             if use_conversation_context and response:
-                # Strip the memory indicator before storing
-                clean_response = response
-                if clean_response.startswith("💭 *Using conversation memory"):
-                    lines = clean_response.split('\n')
-                    clean_response = '\n'.join(lines[2:])  # Skip indicator and empty line
-                self.add_to_conversation_memory(original_question, clean_response)
+                self.add_to_conversation_memory(original_question, response)
             
             return response
                 

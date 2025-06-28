@@ -170,9 +170,9 @@ print(f"Labels shape: {labels.shape}")"""
             
             with gr.Tab("💬 Chat with GPU Mentor"):
                 with gr.Row():
-                    with gr.Column(scale=3):
+                    with gr.Column(scale=2):
                         chatbot = gr.Chatbot(
-                            height=400, 
+                            height=600, 
                             label="Conversation (with Memory)",
                             type="messages",
                             value=[{
@@ -204,13 +204,6 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                             )
                             submit_btn = gr.Button("Send", variant="primary", scale=1)
                         
-                        code_input = gr.Textbox(
-                            placeholder="Paste your Python code here for analysis...",
-                            label="Code to Analyze (Optional)",
-                            lines=10,
-                            max_lines=20
-                        )
-                        
                         clear_btn = gr.Button("🧹 Clear Chat & Memory", variant="secondary")
                     
                     with gr.Column(scale=1):
@@ -220,6 +213,13 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                             interactive=True
                         )
                         load_sample_btn = gr.Button("Load Sample", variant="secondary")
+                        
+                        code_input = gr.Textbox(
+                            placeholder="Paste your Python code here for analysis...",
+                            label="Code to Analyze (Optional)",
+                            lines=20,
+                            max_lines=30
+                        )
             
             with gr.Tab("🔍 Code Analysis & Optimization"):
                 # Top row: Code input and GPU optimized code side by side
