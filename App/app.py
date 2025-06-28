@@ -235,13 +235,9 @@ print(f"Labels shape: {labels.shape}")"""
                     )
                     load_analysis_sample_btn = gr.Button("📥 Load Sample", variant="secondary", scale=1)
                     analyze_btn = gr.Button("🔍 Analyze Code", variant="primary", scale=2)
-                    run_comparison_btn = gr.Button("🏃‍♂️ Run on Sol", variant="primary", scale=2)
+                    benchmark_btn = gr.Button("⚡ Benchmark on Sol", variant="primary", scale=2)
                     clear_code_btn = gr.Button("🗑️ Clear", variant="secondary", scale=1)
                 
-                # --- BENCHMARK BUTTON INTEGRATION ---
-                with gr.Row(elem_classes=["button-bar"]):
-                    benchmark_btn = gr.Button("⚡ Benchmark", variant="primary", scale=2)
-
                 # Output boxes for benchmark results
                 with gr.Row(elem_classes=["execution-row"]):
                     cpu_bench_out = gr.Textbox(label="CPU Benchmark Output", lines=8)
@@ -249,9 +245,19 @@ print(f"Labels shape: {labels.shape}")"""
 
                 def benchmark_handler(cpu_code, gpu_code):
                     if not cpu_code.strip() or not gpu_code.strip():
-                        return "Please provide both CPU and GPU code.", ""
-                    results = run_benchmark(cpu_code, gpu_code, "/home/vpatel69/R1/App/output")
-                    return results["cpu"]["stdout"], results["gpu"]["stdout"]
+                        return "Please provide both CPU and GPU code.", "", "", ""
+                    
+                    try:
+                        # Use run_benchmark directly for raw output
+                        results = run_benchmark(cpu_code, gpu_code, "/home/vpatel69/R1/App/output")
+                        
+                        # Also pass to gpu_mentor for formatted markdown outputs
+                        original_md, optimized_md = self.gpu_mentor.run_code_comparison(cpu_code, gpu_code)
+                        
+                        return results["cpu"]["stdout"], results["gpu"]["stdout"], original_md, optimized_md
+                    except Exception as e:
+                        error_msg = f"Error running benchmark: {str(e)}"
+                        return error_msg, error_msg, error_msg, error_msg
 
                 # Enable Benchmark only if both code boxes are filled
                 def enable_benchmark(cpu, gpu):
@@ -262,7 +268,7 @@ print(f"Labels shape: {labels.shape}")"""
                 benchmark_btn.click(
                     benchmark_handler,
                     inputs=[analyze_code, optimized_code],
-                    outputs=[cpu_bench_out, gpu_bench_out]
+                    outputs=[cpu_bench_out, gpu_bench_out, original_execution_output, optimized_execution_output]
                 )
                 
                 # Execution results row: Show execution outputs below code boxes
@@ -270,14 +276,14 @@ print(f"Labels shape: {labels.shape}")"""
                     with gr.Column(scale=1):
                         original_execution_output = gr.Markdown(
                             label="🖥️ Original Code Execution",
-                            value="**Original Code Execution Results**\n\nClick 'Run on Sol' to execute the original code on the Sol supercomputer and see timing results.",
+                            value="**Original Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the original code on the Sol supercomputer and see timing results.",
                             elem_classes=["execution-results"]
                         )
                     
                     with gr.Column(scale=1):
                         optimized_execution_output = gr.Markdown(
                             label="🚀 GPU Code Execution", 
-                            value="**GPU-Optimized Code Execution Results**\n\nClick 'Run on Sol' to execute the GPU-optimized code and compare performance.",
+                            value="**GPU-Optimized Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the GPU-optimized code and compare performance.",
                             elem_classes=["execution-results"]
                         )
                 
@@ -319,9 +325,9 @@ print(f"Labels shape: {labels.shape}")"""
                 return ""
             
             def clear_execution_results():
-                original_msg = "**Original Code Execution Results**\n\nClick 'Run on Sol' to execute the original code on the Sol supercomputer and see timing results."
-                optimized_msg = "**GPU-Optimized Code Execution Results**\n\nClick 'Run on Sol' to execute the GPU-optimized code and compare performance."
-                return original_msg, optimized_msg
+                original_msg = "**Original Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the original code on the Sol supercomputer and see timing results."
+                optimized_msg = "**GPU-Optimized Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the GPU-optimized code and compare performance."
+                return "", "", original_msg, optimized_msg
             
             # Wire up the chat interface
             sample_dropdown.change(load_sample_code, inputs=[sample_dropdown], outputs=[code_input])
@@ -345,7 +351,7 @@ print(f"Labels shape: {labels.shape}")"""
             analysis_sample_dropdown.change(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
             load_analysis_sample_btn.click(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
             clear_code_btn.click(clear_code, outputs=[analyze_code])
-            clear_code_btn.click(clear_execution_results, outputs=[original_execution_output, optimized_execution_output])
+            clear_code_btn.click(clear_execution_results, outputs=[cpu_bench_out, gpu_bench_out, original_execution_output, optimized_execution_output])
             
             analyze_btn.click(
                 self.gpu_mentor.analyze_code_only,
@@ -353,11 +359,7 @@ print(f"Labels shape: {labels.shape}")"""
                 outputs=[analysis_results, optimized_code]
             )
             
-            run_comparison_btn.click(
-                self.gpu_mentor.run_code_comparison,
-                inputs=[analyze_code, optimized_code],
-                outputs=[original_execution_output, optimized_execution_output]
-            )
+            # Benchmark button already wired up above
             
             generate_tutorial_btn.click(
                 self.gpu_mentor.get_tutorial_content,
