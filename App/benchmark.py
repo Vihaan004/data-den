@@ -4,13 +4,24 @@ import subprocess
 from pathlib import Path
 import re
 
-def indent_code(code_lines, base_indent=4, loop_indent=4):
-    """Helper to indent code with proper levels for repetition loops."""
-    # First level of indentation for try block
+def indent_code(code_lines, base_indent=4, loop_indent=0):
+    """Helper to indent code with proper levels for repetition loops.
+    
+    This function preserves existing indentation while adding the specified
+    base_indent and loop_indent.
+    """
     indented = []
     for line in code_lines:
-        # Add base indentation plus loop indentation
-        indented.append(" " * (base_indent + loop_indent) + line)
+        if line.strip():  # If line has content
+            # Get the raw content of the line without leading whitespace
+            stripped_line = line.lstrip()
+            # Count leading spaces in original line
+            leading_spaces = len(line) - len(stripped_line)
+            # Add base indentation plus loop indentation plus original indentation
+            indented.append(" " * base_indent + " " * loop_indent + " " * leading_spaces + stripped_line)
+        else:
+            # For empty lines, just add the base indentation
+            indented.append(" " * base_indent + " " * loop_indent)
     return "\n".join(indented)
 
 def wrap_with_timing(code, is_gpu=False):
@@ -126,7 +137,7 @@ try:
     # First do a single run to estimate timing
     start_time = time.perf_counter()
     
-{indent_code(computation_lines, 4)}
+{indent_code(computation_lines, 4, 0)}
     
     # Ensure GPU operations complete
     try:
@@ -149,7 +160,7 @@ try:
     start_time = time.perf_counter()
     
     for iteration in range(num_runs):
-{indent_code(computation_lines, 8)}
+{indent_code(computation_lines, 8, 0)}
         
         # Track iterations
         iterations_completed = iteration + 1
@@ -211,7 +222,7 @@ try:
     # First do a single run to estimate timing
     start_time = time.perf_counter()
     
-{indent_code(computation_lines, 4)}
+{indent_code(computation_lines, 4, 0)}
     
     end_time = time.perf_counter()
     single_run_time = end_time - start_time
@@ -228,7 +239,7 @@ try:
     start_time = time.perf_counter()
     
     for iteration in range(num_runs):
-{indent_code(computation_lines, 8)}
+{indent_code(computation_lines, 8, 0)}
         
         # Track iterations
         iterations_completed = iteration + 1
