@@ -5,6 +5,7 @@ from code_optimizer import CodeOptimizer
 from gpu_mentor import GPUMentor
 from langchain.tools.retriever import create_retriever_tool
 from benchmark import run_benchmark  # Using the updated benchmark implementation
+from samples import SAMPLE_CODES
 
 class GPUMentorApp:
     """Main application class for the GPU Mentor."""
@@ -65,57 +66,8 @@ class GPUMentorApp:
                 title="GPU Mentor - Initialization Error"
             )
         
-        # Sample code examples
-        sample_codes = {
-            "Matrix Multiplication": """import numpy as np
-
-# Create large matrices
-size = 1000
-A = np.random.rand(size, size).astype(np.float32)
-B = np.random.rand(size, size).astype(np.float32)
-
-# Matrix multiplication
-C = np.matmul(A, B)
-
-print(f"Result shape: {C.shape}")
-print(f"Sum of result: {np.sum(C)}")""",
-            
-            "DataFrame Operations": """import pandas as pd
-import numpy as np
-
-# Create sample dataframe
-n_rows = 100000
-df = pd.DataFrame({
-    'A': np.random.randn(n_rows),
-    'B': np.random.randn(n_rows),
-    'C': np.random.choice(['X', 'Y', 'Z'], n_rows),
-    'D': np.random.randint(1, 100, n_rows)
-})
-
-# Perform operations
-result = df.groupby('C').agg({
-    'A': 'mean',
-    'B': 'std',
-    'D': 'sum'
-})
-
-print(result)""",
-            
-            "Machine Learning": """from sklearn.cluster import KMeans
-from sklearn.datasets import make_blobs
-import numpy as np
-
-# Generate sample data
-X, _ = make_blobs(n_samples=10000, centers=10, 
-                  n_features=20, random_state=42)
-
-# Perform clustering
-kmeans = KMeans(n_clusters=10, random_state=42)
-labels = kmeans.fit_predict(X)
-
-print(f"Cluster centers shape: {kmeans.cluster_centers_.shape}")
-print(f"Labels shape: {labels.shape}")"""
-        }
+        # Sample code examples from external module
+        sample_codes = SAMPLE_CODES
         
         # Create interface
         # Custom CSS for better layout
@@ -154,6 +106,39 @@ print(f"Labels shape: {labels.shape}")"""
         .gradio-container {
             max-width: 100% !important;
         }
+        /* Enhanced code editor styling for consistent appearance */
+        .code-input .cm-editor, .code-output .cm-editor {
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            min-height: 400px;
+            background-color: #1e293b !important;
+        }
+        .code-output .cm-editor {
+            border-color: #10b981;
+        }
+        /* Ensure consistent dark theme for both code editors */
+        .code-input .cm-content, .code-output .cm-content {
+            background-color: #1e293b !important;
+            color: #e2e8f0 !important;
+        }
+        .code-input .cm-focused, .code-output .cm-focused {
+            background-color: #1e293b !important;
+        }
+        /* Override any white backgrounds */
+        .gr-code .cm-editor .cm-scroller {
+            background-color: #1e293b !important;
+        }
+        .gr-code .cm-editor {
+            background-color: #1e293b !important;
+        }
+        /* Make code editors more prominent with consistent styling */
+        .gr-code {
+            font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        }
+        /* Ensure both code boxes have the same height */
+        .code-input .gr-code, .code-output .gr-code {
+            height: 400px;
+        }
         """
         
         with gr.Blocks(
@@ -168,31 +153,43 @@ print(f"Labels shape: {labels.shape}")"""
             Get AI-powered code optimization suggestions and educational guidance.
             """)
             
-            with gr.Tab("💬 Chat with GPU Mentor"):
+            with gr.Tab("💬 GPU Gossip"):
                 with gr.Row():
-                    with gr.Column(scale=3):
+                    with gr.Column(scale=2):
                         chatbot = gr.Chatbot(
-                            height=400, 
+                            height=600, 
                             label="Conversation",
-                            type="messages"
+                            type="messages",
+                            value=[{
+                                "role": "assistant", 
+                                "content": """👋 **Welcome to GPU Mentor!**
+
+I'm your AI assistant for GPU acceleration with NVIDIA Rapids libraries. 
+
+🧠 **New Feature**: I now have **conversation memory**! You can:
+- Ask follow-up questions and I'll remember our previous discussion
+- Reference earlier topics with phrases like "what about...", "tell me more...", etc.
+- Build on our conversation naturally
+
+🚀 **What I can help with**:
+- Analyze Python code for GPU optimization opportunities  
+- Convert NumPy → CuPy, Pandas → cuDF, scikit-learn → cuML
+- Explain GPU acceleration concepts and best practices
+- Answer follow-up questions based on our conversation
+
+Feel free to ask questions about GPU acceleration or paste code for analysis!"""
+                            }]
                         )
                         
                         with gr.Row():
                             message_input = gr.Textbox(
-                                placeholder="Ask about GPU acceleration...",
+                                placeholder="Ask about GPU acceleration, or ask follow-up questions...",
                                 label="Your Question",
                                 scale=4
                             )
                             submit_btn = gr.Button("Send", variant="primary", scale=1)
                         
-                        code_input = gr.Textbox(
-                            placeholder="Paste your Python code here for analysis...",
-                            label="Code to Analyze (Optional)",
-                            lines=10,
-                            max_lines=20
-                        )
-                        
-                        clear_btn = gr.Button("Clear Chat", variant="secondary")
+                        clear_btn = gr.Button("🧹 Clear Chat & Memory", variant="secondary")
                     
                     with gr.Column(scale=1):
                         sample_dropdown = gr.Dropdown(
@@ -201,25 +198,34 @@ print(f"Labels shape: {labels.shape}")"""
                             interactive=True
                         )
                         load_sample_btn = gr.Button("Load Sample", variant="secondary")
+                        
+                        code_input = gr.Code(
+                            value="",
+                            label="Code to Analyze (Optional)",
+                            language="python",
+                            lines=20,
+                            interactive=True
+                        )
             
-            with gr.Tab("🔍 Code Analysis & Optimization"):
+            with gr.Tab("🔍 Workspace"):
                 # Top row: Code input and GPU optimized code side by side
                 with gr.Row(elem_classes=["code-input-row"]):
                     with gr.Column(scale=1):
-                        analyze_code = gr.Textbox(
-                            placeholder="Paste your Python code here for analysis...",
+                        analyze_code = gr.Code(
+                            value="",
                             label="💻 Code to Analyze",
+                            language="python",
                             lines=15,
-                            max_lines=25,
+                            interactive=True,
                             elem_classes=["code-input"]
                         )
                     
                     with gr.Column(scale=1):
-                        optimized_code = gr.Textbox(
+                        optimized_code = gr.Code(
+                            value="# GPU-optimized code will appear here after analysis...\n# Click 'Analyze Code' to see the optimized version",
                             label="🚀 GPU-Optimized Code",
+                            language="python",
                             lines=15,
-                            max_lines=25,
-                            placeholder="Optimized GPU code will appear here after analysis...",
                             interactive=False,
                             elem_classes=["code-output"]
                         )
@@ -228,7 +234,7 @@ print(f"Labels shape: {labels.shape}")"""
                 with gr.Row(elem_classes=["button-bar"]):
                     analysis_sample_dropdown = gr.Dropdown(
                         choices=list(sample_codes.keys()),
-                        label=None,
+                        label="Choose Sample",
                         interactive=True,
                         scale=2,
                         elem_classes=["sample-dropdown"]
@@ -268,12 +274,7 @@ print(f"Labels shape: {labels.shape}")"""
                         error_msg = f"Error running benchmark: {str(e)}"
                         return error_msg, error_msg
 
-                # Enable Benchmark only if both code boxes are filled
-                def enable_benchmark(cpu, gpu):
-                    return bool(cpu.strip()) and bool(gpu.strip())
-                analyze_code.change(enable_benchmark, [analyze_code, optimized_code], benchmark_btn)
-                optimized_code.change(enable_benchmark, [analyze_code, optimized_code], benchmark_btn)
-
+                # Benchmark button click handler
                 benchmark_btn.click(
                     benchmark_handler,
                     inputs=[analyze_code, optimized_code],
@@ -288,17 +289,22 @@ print(f"Labels shape: {labels.shape}")"""
                         elem_classes=["analysis-results"]
                     )
             
-            with gr.Tab("📚 Learning Resources"):
+            with gr.Tab("📚 Tutorial Generator"):
+                # Top row: Tutorial topic input and generate button taking full width
                 with gr.Row():
-                    with gr.Column():
-                        tutorial_topic = gr.Textbox(
-                            placeholder="e.g., CuPy array operations, cuDF dataframes, cuML machine learning",
-                            label="Tutorial Topic"
-                        )
-                        generate_tutorial_btn = gr.Button("Generate Tutorial", variant="primary")
-                    
-                    with gr.Column():
-                        tutorial_content = gr.Markdown(label="Tutorial Content")
+                    tutorial_topic = gr.Textbox(
+                        placeholder="e.g., CuPy array operations, cuDF dataframes, cuML machine learning",
+                        label="Tutorial Topic",
+                        scale=4
+                    )
+                    generate_tutorial_btn = gr.Button("Generate Tutorial", variant="primary", scale=1)
+                
+                # Tutorial content below taking full width
+                tutorial_content = gr.Markdown(
+                    label="Tutorial Content",
+                    value="**Welcome to Learning Resources!**\n\nEnter a topic above and click 'Generate Tutorial' to get customized learning content about GPU acceleration with NVIDIA Rapids libraries.\n\n**Example topics:**\n- CuPy array operations and NumPy conversion\n- cuDF DataFrame manipulation and Pandas migration\n- cuML machine learning algorithms and scikit-learn equivalents\n- Memory management in GPU computing\n- Performance optimization techniques",
+                    height=400
+                )
             
             with gr.Tab("📊 Execution Summary"):
                 with gr.Row():
@@ -311,11 +317,46 @@ print(f"Labels shape: {labels.shape}")"""
                     return sample_codes[sample_name]
                 return ""
             
+            def generate_tutorial_with_indicator(topic):
+                """Generate tutorial with processing indicator."""
+                if not topic.strip():
+                    return "**Please enter a tutorial topic above.**\n\nExample topics:\n- CuPy array operations and NumPy conversion\n- cuDF DataFrame manipulation and Pandas migration\n- cuML machine learning algorithms and scikit-learn equivalents\n- Memory management in GPU computing\n- Performance optimization techniques"
+                
+                # Show simple processing indicator
+                return "⏱️ Processing..."
+            
+            def generate_tutorial_content(topic):
+                """Generate the actual tutorial content."""
+                if not topic.strip():
+                    return "**Please enter a tutorial topic above.**\n\nExample topics:\n- CuPy array operations and NumPy conversion\n- cuDF DataFrame manipulation and Pandas migration\n- cuML machine learning algorithms and scikit-learn equivalents\n- Memory management in GPU computing\n- Performance optimization techniques"
+                
+                # Generate the actual tutorial content
+                return self.gpu_mentor.get_tutorial_content(topic)
+            
             def clear_chat():
-                return []
+                # Clear conversation memory in the RAG agent
+                if self.gpu_mentor:
+                    self.gpu_mentor.clear_conversation_memory()
+                # Return a clean slate with a fresh welcome message
+                return [{
+                    "role": "assistant", 
+                    "content": """👋 **Welcome back to GPU Mentor!**
+
+🧹 **Chat memory cleared** - Starting fresh!
+
+🧠 **Conversation Memory**: I can now remember our conversation and answer follow-up questions.
+
+🚀 **What I can help with**:
+- Analyze Python code for GPU optimization opportunities  
+- Convert NumPy → CuPy, Pandas → cuDF, scikit-learn → cuML
+- Explain GPU acceleration concepts and best practices
+- Answer follow-up questions based on our conversation
+
+Feel free to ask questions about GPU acceleration or paste code for analysis!"""
+                }]
             
             def clear_code():
-                return ""
+                return "", "# GPU-optimized code will appear here after analysis...\n# Click 'Analyze Code' to see the optimized version"  # Clear input, reset output with placeholder
             
             def clear_execution_results():
                 original_msg = "**Original Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the original code on the Sol supercomputer and see timing results."
@@ -343,7 +384,7 @@ print(f"Labels shape: {labels.shape}")"""
             # Wire up the code analysis interface
             analysis_sample_dropdown.change(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
             load_analysis_sample_btn.click(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
-            clear_code_btn.click(clear_code, outputs=[analyze_code])
+            clear_code_btn.click(clear_code, outputs=[analyze_code, optimized_code])
             clear_code_btn.click(clear_execution_results, outputs=[original_execution_output, optimized_execution_output])
             
             analyze_btn.click(
@@ -354,8 +395,13 @@ print(f"Labels shape: {labels.shape}")"""
             
             # Benchmark button already wired up above
             
+            # Tutorial generation with processing indicator
             generate_tutorial_btn.click(
-                self.gpu_mentor.get_tutorial_content,
+                generate_tutorial_with_indicator,
+                inputs=[tutorial_topic],
+                outputs=[tutorial_content]
+            ).then(
+                generate_tutorial_content,
                 inputs=[tutorial_topic],
                 outputs=[tutorial_content]
             )

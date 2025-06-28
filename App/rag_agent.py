@@ -1,5 +1,6 @@
 from typing import Dict, List, Any
 import re
+from datetime import datetime
 from pydantic import BaseModel, Field
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
@@ -22,8 +23,41 @@ class RAGAgent:
         self.code_llm_model = None  # For code analysis and optimization
         self.retriever_tool = None
         self.rag_graph = None
+        self.conversation_memory = []  # Store conversation history for context
+        self.max_history_length = 10  # Keep last 10 exchanges to avoid token limits
         self._setup_llm()
     
+    def clear_conversation_memory(self):
+        """Clear the conversation memory."""
+        self.conversation_memory = []
+        print("🧹 Conversation memory cleared")
+    
+    def add_to_conversation_memory(self, user_message: str, assistant_response: str):
+        """Add an exchange to conversation memory."""
+        self.conversation_memory.append({
+            "user": user_message,
+            "assistant": assistant_response,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # Keep only the last max_history_length exchanges
+        if len(self.conversation_memory) > self.max_history_length:
+            self.conversation_memory = self.conversation_memory[-self.max_history_length:]
+    
+    def get_conversation_context(self) -> str:
+        """Get formatted conversation history for context."""
+        if not self.conversation_memory:
+            return ""
+        
+        context_parts = ["Previous conversation:"]
+        for i, exchange in enumerate(self.conversation_memory, 1):
+            context_parts.append(f"User: {exchange['user']}")
+            context_parts.append(f"Assistant: {exchange['assistant']}")
+            if i < len(self.conversation_memory):
+                context_parts.append("---")
+        
+        return "\n".join(context_parts)
+
     def _setup_llm(self):
         """Initialize both LLM models - chat model and code model."""
         try:
@@ -201,8 +235,8 @@ class RAGAgent:
         else:
             return "respond"
     
-    def query(self, question: str) -> str:
-        """Query the RAG system with a question."""
+    def query(self, question: str, use_conversation_context: bool = True) -> str:
+        """Query the RAG system with a question, optionally including conversation context."""
         try:
             print(f"DEBUG: RAGAgent.query called with question length: {len(question)}")
             
@@ -210,37 +244,53 @@ class RAGAgent:
             query_type = self._classify_query(question)
             print(f"DEBUG: Query classified as: {query_type}")
             
+            # Store the original question for memory
+            original_question = question
+            conversation_context_used = False
+            
+            # Add conversation context if enabled and available
+            if use_conversation_context and self.conversation_memory:
+                conversation_context = self.get_conversation_context()
+                question = f"{conversation_context}\n\nCurrent question: {question}"
+                conversation_context_used = True
+                print(f"DEBUG: Added conversation context, total length: {len(question)}")
+            
+            response = None
+            
             if query_type == "general_chat":
                 # Handle general conversation without retrieval - use direct LLM
                 print("DEBUG: Handling as general chat")
-                result = self._handle_general_chat(question)
-                print(f"DEBUG: General chat result length: {len(result) if result else 0}")
-                return result
+                response = self._handle_general_chat(question)
+                print(f"DEBUG: General chat result length: {len(response) if response else 0}")
             elif query_type == "code_analysis":
                 # Handle code analysis with the dedicated code model
                 print("DEBUG: Handling as code analysis")
-                result = self.query_code_analysis(question)
-                print(f"DEBUG: Code analysis result length: {len(result) if result else 0}")
-                return result
+                response = self.query_code_analysis(question)
+                print(f"DEBUG: Code analysis result length: {len(response) if response else 0}")
             elif query_type == "gpu_question":
                 # Handle GPU-specific questions with RAG retrieval
                 print("DEBUG: Handling as GPU question with RAG")
                 if not self.rag_graph:
                     print("ERROR: RAG graph not initialized")
-                    return "RAG system not initialized for GPU queries"
-                
-                print("DEBUG: Invoking RAG graph")
-                result = self.rag_graph.invoke({
-                    "messages": [HumanMessage(content=question)]
-                })
-                print(f"DEBUG: RAG graph completed, result messages: {len(result.get('messages', []))}")
-                response = result["messages"][-1].content
-                print(f"DEBUG: Final response length: {len(response) if response else 0}")
-                return response
+                    response = "RAG system not initialized for GPU queries"
+                else:
+                    print("DEBUG: Invoking RAG graph")
+                    result = self.rag_graph.invoke({
+                        "messages": [HumanMessage(content=question)]
+                    })
+                    print(f"DEBUG: RAG graph completed, result messages: {len(result.get('messages', []))}")
+                    response = result["messages"][-1].content
+                    print(f"DEBUG: Final response length: {len(response) if response else 0}")
             else:
                 # This shouldn't happen with our current classification, but fallback to general chat
                 print("DEBUG: Fallback to general chat")
-                return self._handle_general_chat(question)
+                response = self._handle_general_chat(question)
+            
+            # Add this exchange to conversation memory
+            if use_conversation_context and response:
+                self.add_to_conversation_memory(original_question, response)
+            
+            return response
                 
         except Exception as e:
             print(f"ERROR in query processing: {e}")
@@ -316,9 +366,53 @@ class RAGAgent:
         """Handle general conversation without document retrieval."""
         print(f"DEBUG: _handle_general_chat called with question length: {len(question)}")
         
-        question_lower = question.lower().strip()
+        # Extract the current question if conversation context was added
+        current_question = question
+        if "Current question:" in question:
+            current_question = question.split("Current question:")[-1].strip()
         
-        # Predefined responses for common queries
+        question_lower = current_question.lower().strip()
+        
+        # Check if this is a follow-up question that references previous conversation
+        is_followup = any(phrase in question_lower for phrase in [
+            'what about', 'how about', 'and what', 'can you also', 'what if',
+            'tell me more', 'explain more', 'go into more detail', 'elaborate',
+            'that', 'this', 'it', 'them', 'those', 'these'
+        ])
+        
+        # If it's a follow-up and we have conversation context, use LLM for context-aware response
+        if is_followup and "Previous conversation:" in question:
+            print("DEBUG: Detected follow-up question with context, using LLM")
+            try:
+                if self.chat_llm_model:
+                    context_prompt = f"""You are GPU Mentor, a friendly AI assistant specialized in GPU acceleration with NVIDIA Rapids libraries. 
+
+The user is asking a follow-up question based on our previous conversation. Please provide a helpful, context-aware response that builds upon what we've already discussed.
+
+{question}
+
+Provide a clear, helpful answer that acknowledges the conversation context. If the question relates to GPU acceleration, provide specific guidance. Keep your response conversational and informative."""
+                    
+                    response = self.chat_llm_model.invoke([HumanMessage(content=context_prompt)])
+                    return response.content
+                else:
+                    return f"""I'd be happy to help with your follow-up question: "{current_question}"
+
+However, I need my language model to be available to provide context-aware responses. Please check if Ollama is running with the chat model.
+
+In the meantime, could you rephrase your question to be more specific? I specialize in GPU acceleration with NVIDIA Rapids libraries."""
+            except Exception as e:
+                print(f"Error in follow-up LLM: {e}")
+                return f"""I understand you're asking a follow-up question: "{current_question}"
+
+However, I'm having trouble accessing my language model for context-aware responses. Could you please rephrase your question more specifically? 
+
+I specialize in GPU acceleration with NVIDIA Rapids libraries and can help with:
+- Converting Python code to use GPU libraries (CuPy, cuDF, cuML)
+- Performance optimization techniques
+- GPU acceleration best practices"""
+        
+        # Handle predefined responses for common queries (without context dependency)
         if any(greeting in question_lower for greeting in ['hello', 'hi', 'hey']):
             return """Hello! I'm GPU Mentor, your AI assistant for GPU acceleration with NVIDIA Rapids libraries. 
 

@@ -24,6 +24,10 @@ MAX_OUTPUT_LENGTH = 10000  # characters
 CHUNK_SIZE = 100
 CHUNK_OVERLAP = 50
 
+# Vector Store Configuration
+USE_PERSISTENT_VECTORSTORE = True  # Set to False to use in-memory
+VECTORSTORE_PERSIST_DIRECTORY = "./output/vectorstore_data"  # Directory for persistent vector storage
+
 # External URLs for GPU acceleration knowledge
 KNOWLEDGE_URLS = [
     "https://medium.com/cupy-team/announcing-cupy-v13-66979ee7fab0",

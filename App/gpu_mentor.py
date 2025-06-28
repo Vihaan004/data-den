@@ -14,7 +14,12 @@ class GPUMentor:
         self.conversation_history = []
         self.execution_results = []
     
-    def process_user_input(self, question: str, code: str = "") -> Dict[str, Any]:
+    def clear_conversation_memory(self):
+        """Clear conversation memory from the RAG agent."""
+        self.rag_agent.clear_conversation_memory()
+        print("🧹 Conversation memory cleared from GPU Mentor")
+    
+    def process_user_input(self, question: str, code: str = "", use_conversation_context: bool = False) -> Dict[str, Any]:
         """Process user input and provide comprehensive response."""
         timestamp = datetime.now().isoformat()
         
@@ -68,7 +73,8 @@ Focus on practical GPU acceleration techniques."""
                     # Only question provided
                     combined_query = question
                 
-                response["text_response"] = self.rag_agent.query(combined_query)
+                # Pass the conversation context parameter to the RAG agent
+                response["text_response"] = self.rag_agent.query(combined_query, use_conversation_context)
             
             # Analyze and optimize code if provided
             if code:
@@ -96,7 +102,7 @@ Focus on practical GPU acceleration techniques."""
         return response
     
     def chat_interface(self, message: str, code: str, history: List) -> tuple:
-        """Interface for chat functionality."""
+        """Interface for chat functionality with conversation memory."""
         if not message.strip() and not code.strip():
             return "", "", history
         
@@ -105,8 +111,8 @@ Focus on practical GPU acceleration techniques."""
         if code.strip():
             user_content += f"\n\nCode to analyze:\n```python\n{code}\n```"
         
-        # Process the input
-        response = self.process_user_input(message, code)
+        # Process the input with conversation context enabled
+        response = self.process_user_input(message, code, use_conversation_context=True)
         
         # Format response for chat
         chat_response = self._format_chat_response(response)
