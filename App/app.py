@@ -5,6 +5,7 @@ from code_optimizer import CodeOptimizer
 from gpu_mentor import GPUMentor
 from langchain.tools.retriever import create_retriever_tool
 from benchmark import run_benchmark  # Using the updated benchmark implementation
+from samples import SAMPLE_CODES
 
 class GPUMentorApp:
     """Main application class for the GPU Mentor."""
@@ -65,57 +66,8 @@ class GPUMentorApp:
                 title="GPU Mentor - Initialization Error"
             )
         
-        # Sample code examples
-        sample_codes = {
-            "Matrix Multiplication": """import numpy as np
-
-# Create large matrices
-size = 1000
-A = np.random.rand(size, size).astype(np.float32)
-B = np.random.rand(size, size).astype(np.float32)
-
-# Matrix multiplication
-C = np.matmul(A, B)
-
-print(f"Result shape: {C.shape}")
-print(f"Sum of result: {np.sum(C)}")""",
-            
-            "DataFrame Operations": """import pandas as pd
-import numpy as np
-
-# Create sample dataframe
-n_rows = 100000
-df = pd.DataFrame({
-    'A': np.random.randn(n_rows),
-    'B': np.random.randn(n_rows),
-    'C': np.random.choice(['X', 'Y', 'Z'], n_rows),
-    'D': np.random.randint(1, 100, n_rows)
-})
-
-# Perform operations
-result = df.groupby('C').agg({
-    'A': 'mean',
-    'B': 'std',
-    'D': 'sum'
-})
-
-print(result)""",
-            
-            "Machine Learning": """from sklearn.cluster import KMeans
-from sklearn.datasets import make_blobs
-import numpy as np
-
-# Generate sample data
-X, _ = make_blobs(n_samples=10000, centers=10, 
-                  n_features=20, random_state=42)
-
-# Perform clustering
-kmeans = KMeans(n_clusters=10, random_state=42)
-labels = kmeans.fit_predict(X)
-
-print(f"Cluster centers shape: {kmeans.cluster_centers_.shape}")
-print(f"Labels shape: {labels.shape}")"""
-        }
+        # Sample code examples from external module
+        sample_codes = SAMPLE_CODES
         
         # Create interface
         # Custom CSS for better layout
@@ -201,12 +153,12 @@ print(f"Labels shape: {labels.shape}")"""
             Get AI-powered code optimization suggestions and educational guidance.
             """)
             
-            with gr.Tab("💬 Chat with GPU Mentor"):
+            with gr.Tab("💬 GPU Gossip"):
                 with gr.Row():
                     with gr.Column(scale=2):
                         chatbot = gr.Chatbot(
                             height=600, 
-                            label="Conversation (with Memory)",
+                            label="Conversation",
                             type="messages",
                             value=[{
                                 "role": "assistant", 
@@ -255,7 +207,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                             interactive=True
                         )
             
-            with gr.Tab("🔍 Code Analysis & Optimization"):
+            with gr.Tab("🔍 Workspace"):
                 # Top row: Code input and GPU optimized code side by side
                 with gr.Row(elem_classes=["code-input-row"]):
                     with gr.Column(scale=1):
@@ -282,7 +234,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                 with gr.Row(elem_classes=["button-bar"]):
                     analysis_sample_dropdown = gr.Dropdown(
                         choices=list(sample_codes.keys()),
-                        label=None,
+                        label="Choose Sample",
                         interactive=True,
                         scale=2,
                         elem_classes=["sample-dropdown"]
@@ -337,7 +289,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                         elem_classes=["analysis-results"]
                     )
             
-            with gr.Tab("📚 Learning Resources"):
+            with gr.Tab("📚 Tutorial Generator"):
                 # Top row: Tutorial topic input and generate button taking full width
                 with gr.Row():
                     tutorial_topic = gr.Textbox(
