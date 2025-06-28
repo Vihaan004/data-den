@@ -109,19 +109,23 @@ Sample Data (first 5 rows):
 {pd.DataFrame(self.dataset_info['sample_data']).to_string()}
 """
             
-            prompt = f"""Analyze this dataset and suggest 5-7 specific data analysis operations that would be particularly effective with GPU acceleration using libraries like CuPy, cuDF, cuML, and RAPIDS. Focus on operations that would showcase GPU performance benefits.
+            prompt = f"""I need help with GPU acceleration for data analysis. Please analyze this dataset and suggest 5-7 specific data analysis operations that would be particularly effective with GPU acceleration using libraries like CuPy, cuDF, cuML, and RAPIDS. Focus on operations that would showcase GPU performance benefits over CPU implementations.
 
 {dataset_summary}
 
 For each suggestion, provide:
 1. A clear, specific title (e.g. "K-Means Clustering Analysis", "Time Series Correlation Analysis")
 2. A brief description of what insights it would provide
-3. Why it benefits from GPU acceleration
+3. Why GPU acceleration with RAPIDS/CuPy/cuDF would be beneficial
+4. What specific GPU computing advantages it would demonstrate
 
-Format your response as a numbered list with clear titles and descriptions. Focus on practical, executable analyses that would work well with this specific dataset's structure and content."""
-            
+Format your response as a numbered list with clear titles and descriptions. Focus on practical, executable analyses that would work well with this specific dataset's structure and content and would benefit from GPU computing power."""
+
             # Get suggestions from RAG agent
+            print(f"DEBUG: Sending prompt to RAG agent, length: {len(prompt)}")
             response = self.rag_agent.query(prompt)
+            print(f"DEBUG: RAG agent response length: {len(response) if response else 0}")
+            print(f"DEBUG: RAG agent response preview: {response[:200] if response else 'None'}...")
             
             return f"## 🔍 Suggested GPU-Accelerated Analyses\\n\\n{response}"
             

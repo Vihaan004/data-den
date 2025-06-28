@@ -347,7 +347,13 @@ class RAGAgent:
             r'\bparallel.*gpu\b',
             r'\bgpu.*computing\b',
             r'\bconvert.*to.*gpu\b',
-            r'\bmake.*faster.*gpu\b'
+            r'\bmake.*faster.*gpu\b',
+            r'help with.*gpu.*acceleration',
+            r'suggest.*gpu.*acceleration',
+            r'data analysis.*gpu',
+            r'gpu.*data analysis',
+            r'accelerated.*analyses',
+            r'gpu.*operations'
         ]
         
         # Check for GPU-specific questions
