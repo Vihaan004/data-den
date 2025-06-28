@@ -355,10 +355,10 @@ print("Fallback analysis completed successfully")"""
     def execute_analysis(self, code):
         """Execute the analysis code using the job executor."""
         if self.current_dataset is None or self.current_dataset_path is None:
-            return "❌ Please load a dataset first.", None, ""
+            return "❌ Please load a dataset first.", None
         
         if not code.strip():
-            return "❌ Please generate code first.", None, ""
+            return "❌ Please generate code first.", None
         
         try:
             # Run the analysis job
@@ -377,27 +377,20 @@ print("Fallback analysis completed successfully")"""
             
             # Handle plots
             plot_images = []
-            print(f"DEBUG: Checking for plots in result, plots key exists: {result.get('plots') is not None}")
             if result.get("plots"):
-                print(f"DEBUG: Found {len(result['plots'])} plots")
                 for i, plot_data in enumerate(result["plots"]):
                     try:
-                        print(f"DEBUG: Processing plot {i}, data length: {len(plot_data) if plot_data else 0}")
                         # Decode base64 plot data
                         image_data = base64.b64decode(plot_data)
                         image = Image.open(io.BytesIO(image_data))
                         plot_images.append(image)
-                        print(f"DEBUG: Successfully processed plot {i}")
                     except Exception as e:
                         print(f"Error processing plot {i}: {e}")
-            else:
-                print("DEBUG: No plots found in result")
             
-            print(f"DEBUG: Returning {len(plot_images)} plot images")
-            return output_text, plot_images[0] if plot_images else None, ""
+            return output_text, plot_images[0] if plot_images else None
                 
         except Exception as e:
-            return f"❌ Error executing analysis: {str(e)}", None, ""
+            return f"❌ Error executing analysis: {str(e)}", None
     
     def create_interface(self):
         """Create the Gradio interface for data analysis."""

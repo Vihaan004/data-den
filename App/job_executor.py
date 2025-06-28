@@ -31,43 +31,9 @@ start_time = time.perf_counter()
 # Execute the LLM-generated analysis code
 {code}
 
-# Check for generated plots and encode them for display
-import glob
-try:
-    import matplotlib.pyplot as plt
-except:
-    pass
-
-# Look for any PNG files that were created
-import base64
-import glob
-working_dir = os.getcwd()
-print(f"DEBUG: Looking for plots in: {{working_dir}}")
-plot_files = glob.glob('*.png')
-print(f"DEBUG: Found plot files: {{plot_files}}")
-
-if plot_files:
-    print("\\n----- PLOTS GENERATED -----")
-    for plot_file in plot_files:
-        try:
-            full_path = os.path.join(working_dir, plot_file)
-            print(f"DEBUG: Reading plot file: {{full_path}}")
-            with open(plot_file, 'rb') as f:
-                plot_data = base64.b64encode(f.read()).decode()
-                print(f"PLOT_DATA_START")
-                print(plot_data)
-                print(f"PLOT_DATA_END")
-                print(f"Plot saved: {{plot_file}}")
-        except Exception as plot_err:
-            print(f"Error reading plot {{plot_file}}: {{plot_err}}")
-else:
-    print("DEBUG: No PNG files found in working directory")
-    # List all files to debug
-    all_files = os.listdir('.')
-    print(f"DEBUG: All files in working directory: {{all_files}}")
-
 # Close any remaining matplotlib figures
 try:
+    import matplotlib.pyplot as plt
     plt.close('all')
 except:
     pass
@@ -137,31 +103,31 @@ def extract_execution_time(output):
         return float(match.group(1))
     return None
 
-def extract_plots(output):
+def extract_plots_from_directory(output_dir):
     """
-    Extract base64 plot data from the output.
+    Extract plot files from the output directory after job completion.
     """
+    import glob
+    import base64
+    
     plots = []
-    lines = output.split('\\n')
-    i = 0
-    print(f"DEBUG: Extracting plots from {len(lines)} lines of output")
+    output_path = Path(output_dir)
     
-    while i < len(lines):
-        if lines[i].strip() == "PLOT_DATA_START":
-            print(f"DEBUG: Found PLOT_DATA_START at line {i}")
-            i += 1
-            plot_data = ""
-            while i < len(lines) and lines[i].strip() != "PLOT_DATA_END":
-                plot_data += lines[i]
-                i += 1
-            if plot_data:
-                print(f"DEBUG: Extracted plot data of length {len(plot_data)}")
+    # Look for PNG files in the output directory
+    png_files = list(output_path.glob("*.png"))
+    print(f"DEBUG: Looking for plots in {output_dir}")
+    print(f"DEBUG: Found PNG files: {[f.name for f in png_files]}")
+    
+    for png_file in png_files:
+        try:
+            with open(png_file, 'rb') as f:
+                plot_data = base64.b64encode(f.read()).decode()
                 plots.append(plot_data)
-            else:
-                print("DEBUG: Empty plot data found")
-        i += 1
+                print(f"DEBUG: Successfully encoded plot: {png_file.name}")
+        except Exception as e:
+            print(f"DEBUG: Error reading plot {png_file.name}: {e}")
     
-    print(f"DEBUG: Total plots extracted: {len(plots)}")
+    print(f"DEBUG: Total plots extracted from directory: {len(plots)}")
     return plots
 
 def check_job_success(output):
@@ -244,7 +210,7 @@ python {py_file.name}
             
             # Extract results
             execution_time = extract_execution_time(output)
-            plots = extract_plots(output)
+            plots = extract_plots_from_directory(output_dir)
             success = check_job_success(output)
             
             return {
