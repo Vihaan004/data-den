@@ -275,12 +275,25 @@ class RAGAgent:
                     response = "RAG system not initialized for GPU queries"
                 else:
                     print("DEBUG: Invoking RAG graph")
-                    result = self.rag_graph.invoke({
-                        "messages": [HumanMessage(content=question)]
-                    })
-                    print(f"DEBUG: RAG graph completed, result messages: {len(result.get('messages', []))}")
-                    response = result["messages"][-1].content
-                    print(f"DEBUG: Final response length: {len(response) if response else 0}")
+                    try:
+                        result = self.rag_graph.invoke({
+                            "messages": [HumanMessage(content=question)]
+                        })
+                        print(f"DEBUG: RAG graph completed, result messages: {len(result.get('messages', []))}")
+                        if result.get('messages') and len(result['messages']) > 0:
+                            response = result["messages"][-1].content
+                            print(f"DEBUG: Final response length: {len(response) if response else 0}")
+                            print(f"DEBUG: Final response preview: {response[:100] if response else 'None'}...")
+                        else:
+                            print("DEBUG: No messages in result, falling back to direct LLM")
+                            response = self._handle_general_chat(question)
+                    except Exception as e:
+                        print(f"ERROR: RAG graph failed: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        # Fallback to direct LLM response
+                        print("DEBUG: Falling back to direct LLM due to RAG error")
+                        response = self._handle_general_chat(question)
             else:
                 # This shouldn't happen with our current classification, but fallback to general chat
                 print("DEBUG: Fallback to general chat")
@@ -347,7 +360,13 @@ class RAGAgent:
             r'\bparallel.*gpu\b',
             r'\bgpu.*computing\b',
             r'\bconvert.*to.*gpu\b',
-            r'\bmake.*faster.*gpu\b'
+            r'\bmake.*faster.*gpu\b',
+            r'help with.*gpu.*acceleration',
+            r'suggest.*gpu.*acceleration',
+            r'data analysis.*gpu',
+            r'gpu.*data analysis',
+            r'accelerated.*analyses',
+            r'gpu.*operations'
         ]
         
         # Check for GPU-specific questions
