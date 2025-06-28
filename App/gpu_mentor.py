@@ -2,7 +2,7 @@ from typing import Dict, List, Any, Tuple
 import time
 from datetime import datetime
 from langchain_core.messages import HumanMessage
-from sol_job_runner import SolJobRunner
+from benchmark import run_benchmark  # Use benchmark.py instead of sol_job_runner
 
 class GPUMentor:
     """Main GPU Mentor class that coordinates RAG agent and code optimization."""
@@ -11,7 +11,6 @@ class GPUMentor:
         self.rag_agent = rag_agent
         self.code_optimizer = code_optimizer
         self.conversation_history = []
-        self.job_runner = SolJobRunner()  # Initialize Sol job runner
         self.execution_results = []
     
     def process_user_input(self, question: str, code: str = "") -> Dict[str, Any]:
@@ -249,13 +248,25 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
         try:
             print("🚀 Starting code execution comparison on Sol supercomputer...")
             
-            # Run both codes on Sol
-            original_result, optimized_result = self.job_runner.run_comparison(original_code, optimized_code)
+            # Run both codes using benchmark.py
+            results = run_benchmark(original_code, optimized_code, "/home/vpatel69/R1/App/output")
             
-            # Format original code results
+            # Format CPU code results
+            original_result = {
+                "status": "completed" if results["cpu"]["stdout"] else "failed",
+                "stdout": results["cpu"]["stdout"],
+                "stderr": results["cpu"]["stderr"],
+                "execution_time": self._extract_execution_time(results["cpu"]["stdout"])
+            }
             original_output = self._format_execution_result(original_result, "Original CPU Code")
             
-            # Format optimized code results
+            # Format GPU code results
+            optimized_result = {
+                "status": "completed" if results["gpu"]["stdout"] else "failed",
+                "stdout": results["gpu"]["stdout"],
+                "stderr": results["gpu"]["stderr"],
+                "execution_time": self._extract_execution_time(results["gpu"]["stdout"])
+            }
             optimized_output = self._format_execution_result(optimized_result, "GPU-Optimized Code")
             
             return original_output, optimized_output
@@ -266,6 +277,18 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
             traceback.print_exc()
             error_msg = f"Error running code comparison: {str(e)}"
             return error_msg, error_msg
+            
+    def _extract_execution_time(self, output: str) -> float:
+        """Extract execution time from benchmark output."""
+        if not output:
+            return None
+            
+        import re
+        # Look for the execution time in the output (format: TOTAL CPU/GPU EXECUTION TIME: X.XXXX seconds)
+        time_match = re.search(r"TOTAL (?:CPU|GPU) EXECUTION TIME: (\d+\.\d+)", output)
+        if time_match:
+            return float(time_match.group(1))
+        return None
     
     def _format_execution_result(self, result: Dict, code_type: str) -> str:
         """Format execution result for display."""
