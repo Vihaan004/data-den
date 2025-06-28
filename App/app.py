@@ -3,6 +3,7 @@ from document_loader import DocumentLoader, VectorStore
 from rag_agent import RAGAgent
 from code_optimizer import CodeOptimizer
 from gpu_mentor import GPUMentor
+from data_analyzer import DataAnalyzer
 from langchain.tools.retriever import create_retriever_tool
 from benchmark import run_benchmark  # Using the updated benchmark implementation
 from samples import SAMPLE_CODES
@@ -50,15 +51,20 @@ class GPUMentorApp:
             print("🎓 Initializing GPU mentor...")
             self.gpu_mentor = GPUMentor(rag_agent, code_optimizer)
             
+            # Initialize data analyzer
+            print("📊 Initializing data analyzer...")
+            self.data_analyzer = DataAnalyzer(rag_agent)
+            
             print("✅ GPU Mentor System initialized successfully!")
             
         except Exception as e:
             print(f"❌ Error initializing system: {e}")
             self.gpu_mentor = None
+            self.data_analyzer = None
     
     def create_interface(self):
         """Create the Gradio interface."""
-        if not self.gpu_mentor:
+        if not self.gpu_mentor or not hasattr(self, 'data_analyzer'):
             return gr.Interface(
                 fn=lambda: "System not initialized properly. Please check the logs.",
                 inputs=[],
@@ -289,7 +295,10 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                         elem_classes=["analysis-results"]
                     )
             
-            with gr.Tab("📚 Tutorial Generator"):
+            with gr.Tab("� Data Analysis"):
+                self.data_analyzer.create_interface()
+            
+            with gr.Tab("�📚 Tutorial Generator"):
                 # Top row: Tutorial topic input and generate button taking full width
                 with gr.Row():
                     tutorial_topic = gr.Textbox(
