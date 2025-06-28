@@ -154,6 +154,20 @@ print(f"Labels shape: {labels.shape}")"""
         .gradio-container {
             max-width: 100% !important;
         }
+        /* Enhanced code editor styling */
+        .code-input .cm-editor {
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+        }
+        .code-output .cm-editor {
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            background-color: #f8fafc;
+        }
+        /* Make code editors more prominent */
+        .gr-code {
+            font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        }
         """
         
         with gr.Blocks(
@@ -214,31 +228,33 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                         )
                         load_sample_btn = gr.Button("Load Sample", variant="secondary")
                         
-                        code_input = gr.Textbox(
-                            placeholder="Paste your Python code here for analysis...",
+                        code_input = gr.Code(
+                            value="",
                             label="Code to Analyze (Optional)",
+                            language="python",
                             lines=20,
-                            max_lines=30
+                            interactive=True
                         )
             
             with gr.Tab("🔍 Code Analysis & Optimization"):
                 # Top row: Code input and GPU optimized code side by side
                 with gr.Row(elem_classes=["code-input-row"]):
                     with gr.Column(scale=1):
-                        analyze_code = gr.Textbox(
-                            placeholder="Paste your Python code here for analysis...",
+                        analyze_code = gr.Code(
+                            value="",
                             label="💻 Code to Analyze",
+                            language="python",
                             lines=15,
-                            max_lines=25,
+                            interactive=True,
                             elem_classes=["code-input"]
                         )
                     
                     with gr.Column(scale=1):
-                        optimized_code = gr.Textbox(
+                        optimized_code = gr.Code(
+                            value="",
                             label="🚀 GPU-Optimized Code",
+                            language="python",
                             lines=15,
-                            max_lines=25,
-                            placeholder="Optimized GPU code will appear here after analysis...",
                             interactive=False,
                             elem_classes=["code-output"]
                         )
@@ -353,7 +369,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                 }]
             
             def clear_code():
-                return ""
+                return "", ""  # Clear both code input and optimized code
             
             def clear_execution_results():
                 original_msg = "**Original Code Execution Results**\n\nClick '⚡ Benchmark on Sol' to execute the original code on the Sol supercomputer and see timing results."
@@ -381,7 +397,7 @@ Feel free to ask questions about GPU acceleration or paste code for analysis!"""
             # Wire up the code analysis interface
             analysis_sample_dropdown.change(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
             load_analysis_sample_btn.click(load_sample_code, inputs=[analysis_sample_dropdown], outputs=[analyze_code])
-            clear_code_btn.click(clear_code, outputs=[analyze_code])
+            clear_code_btn.click(clear_code, outputs=[analyze_code, optimized_code])
             clear_code_btn.click(clear_execution_results, outputs=[original_execution_output, optimized_execution_output])
             
             analyze_btn.click(
