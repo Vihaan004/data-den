@@ -4,6 +4,7 @@ from rag_agent import RAGAgent
 from code_optimizer import CodeOptimizer
 from gpu_mentor import GPUMentor
 from langchain.tools.retriever import create_retriever_tool
+from benchmark import run_benchmark
 
 class GPUMentorApp:
     """Main application class for the GPU Mentor."""
@@ -236,6 +237,33 @@ print(f"Labels shape: {labels.shape}")"""
                     analyze_btn = gr.Button("🔍 Analyze Code", variant="primary", scale=2)
                     run_comparison_btn = gr.Button("🏃‍♂️ Run on Sol", variant="primary", scale=2)
                     clear_code_btn = gr.Button("🗑️ Clear", variant="secondary", scale=1)
+                
+                # --- BENCHMARK BUTTON INTEGRATION ---
+                with gr.Row(elem_classes=["button-bar"]):
+                    benchmark_btn = gr.Button("⚡ Benchmark", variant="primary", scale=2)
+
+                # Output boxes for benchmark results
+                with gr.Row(elem_classes=["execution-row"]):
+                    cpu_bench_out = gr.Textbox(label="CPU Benchmark Output", lines=8)
+                    gpu_bench_out = gr.Textbox(label="GPU Benchmark Output", lines=8)
+
+                def benchmark_handler(cpu_code, gpu_code):
+                    if not cpu_code.strip() or not gpu_code.strip():
+                        return "Please provide both CPU and GPU code.", ""
+                    results = run_benchmark(cpu_code, gpu_code, "/home/vpatel69/R1/App/output")
+                    return results["cpu"]["stdout"], results["gpu"]["stdout"]
+
+                # Enable Benchmark only if both code boxes are filled
+                def enable_benchmark(cpu, gpu):
+                    return bool(cpu.strip()) and bool(gpu.strip())
+                analyze_code.change(enable_benchmark, [analyze_code, optimized_code], benchmark_btn)
+                optimized_code.change(enable_benchmark, [analyze_code, optimized_code], benchmark_btn)
+
+                benchmark_btn.click(
+                    benchmark_handler,
+                    inputs=[analyze_code, optimized_code],
+                    outputs=[cpu_bench_out, gpu_bench_out]
+                )
                 
                 # Execution results row: Show execution outputs below code boxes
                 with gr.Row(elem_classes=["execution-row"]):
