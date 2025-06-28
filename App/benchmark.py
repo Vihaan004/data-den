@@ -2,6 +2,106 @@ import os
 import time
 import subprocess
 from pathlib import Path
+import re
+
+def wrap_with_timing(code, is_gpu=False):
+    """Wrap user code with performance timing code."""
+    # Check if the code already has imports for time and warnings
+    has_time_import = re.search(r'import\s+time|from\s+time\s+import', code)
+    has_warnings_import = re.search(r'import\s+warnings|from\s+warnings\s+import', code)
+    
+    # Header with imports and setup
+    header = ""
+    if not has_time_import:
+        header += "import time\n"
+    if not has_warnings_import:
+        header += "import warnings\n"
+    
+    if is_gpu:
+        # Check if cupy is already imported
+        has_cupy_import = re.search(r'import\s+cupy|from\s+cupy\s+import|import\s+cupy\s+as\s+cp', code)
+        if not has_cupy_import:
+            header += "import cupy as cp\n"
+        
+        # Add GPU synchronization if not present
+        has_synchronize = "synchronize" in code
+        header += """
+# GPU Benchmark - Added by GPU Mentor
+warnings.filterwarnings("ignore")
+print("="*50)
+print("GPU BENCHMARK EXECUTION")
+print("="*50)
+start_time = time.perf_counter()
+print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+try:
+"""
+        # Indent the user code
+        indented_code = "\n".join(["    " + line for line in code.split("\n")])
+        
+        # Footer with timing and reporting
+        if has_synchronize:
+            footer = """
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+    print(f"End time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"TOTAL GPU EXECUTION TIME: {total_time:.4f} seconds")
+    print("✅ GPU benchmark completed successfully!")
+except Exception as e:
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+    print(f"❌ GPU benchmark failed: {str(e)}")
+    print(f"TOTAL GPU EXECUTION TIME: {total_time:.4f} seconds")
+"""
+        else:
+            footer = """
+    # Ensure all GPU operations are complete
+    import cupy as cp
+    cp.cuda.Device().synchronize()
+    
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+    print(f"End time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"TOTAL GPU EXECUTION TIME: {total_time:.4f} seconds")
+    print("✅ GPU benchmark completed successfully!")
+except Exception as e:
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+    print(f"❌ GPU benchmark failed: {str(e)}")
+    print(f"TOTAL GPU EXECUTION TIME: {total_time:.4f} seconds")
+"""
+    else:
+        # CPU benchmark
+        header += """
+# CPU Benchmark - Added by GPU Mentor
+warnings.filterwarnings("ignore")
+print("="*50)
+print("CPU BENCHMARK EXECUTION")
+print("="*50)
+start_time = time.perf_counter()
+print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+try:
+"""
+        # Indent the user code
+        indented_code = "\n".join(["    " + line for line in code.split("\n")])
+        
+        # Footer with timing and reporting
+        footer = """
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+    print(f"End time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"TOTAL CPU EXECUTION TIME: {total_time:.4f} seconds")
+    print("✅ CPU benchmark completed successfully!")
+except Exception as e:
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+    print(f"❌ CPU benchmark failed: {str(e)}")
+    print(f"TOTAL CPU EXECUTION TIME: {total_time:.4f} seconds")
+"""
+    
+    # Combine everything
+    return header + indented_code + footer
 
 def submit_slurm_job(script_path):
     result = subprocess.run(["sbatch", script_path], capture_output=True, text=True)
@@ -36,9 +136,13 @@ def run_benchmark(cpu_code, gpu_code, output_dir):
     gpu_out = Path(output_dir) / f"gpu_{timestamp}.out"
     gpu_err = Path(output_dir) / f"gpu_{timestamp}.err"
 
+    # Wrap code with timing measurements
+    cpu_code_with_timing = wrap_with_timing(cpu_code, is_gpu=False)
+    gpu_code_with_timing = wrap_with_timing(gpu_code, is_gpu=True)
+
     # Write code files
-    cpu_py.write_text(cpu_code)
-    gpu_py.write_text(gpu_code)
+    cpu_py.write_text(cpu_code_with_timing)
+    gpu_py.write_text(gpu_code_with_timing)
 
     # Write SLURM scripts
     cpu_sh.write_text(f'''#!/bin/bash
