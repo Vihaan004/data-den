@@ -133,16 +133,24 @@ def extract_plots(output):
     plots = []
     lines = output.split('\\n')
     i = 0
+    print(f"DEBUG: Extracting plots from {len(lines)} lines of output")
+    
     while i < len(lines):
         if lines[i].strip() == "PLOT_DATA_START":
+            print(f"DEBUG: Found PLOT_DATA_START at line {i}")
             i += 1
             plot_data = ""
             while i < len(lines) and lines[i].strip() != "PLOT_DATA_END":
                 plot_data += lines[i]
                 i += 1
             if plot_data:
+                print(f"DEBUG: Extracted plot data of length {len(plot_data)}")
                 plots.append(plot_data)
+            else:
+                print("DEBUG: Empty plot data found")
         i += 1
+    
+    print(f"DEBUG: Total plots extracted: {len(plots)}")
     return plots
 
 def check_job_success(output):

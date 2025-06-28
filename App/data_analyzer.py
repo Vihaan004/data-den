@@ -162,6 +162,15 @@ Sample Data:
 Dataset Information:
 {dataset_summary}
 
+SOL ENVIRONMENT SPECIFICATIONS:
+- Python 3.12.9 with conda-forge
+- RAPIDS 25.02 (cuDF 25.02.02, cuML 25.02.01, CuPy 13.4.1)
+- CUDA 12.8 with NVIDIA A100 GPUs (80GB VRAM each)
+- pandas 2.3.0, numpy 1.26.4, matplotlib 3.10.1, sklearn 1.7.0
+- CRITICAL: cuDF cannot handle mixed data types in single operations
+- CRITICAL: cuDF Series cannot be used directly with matplotlib
+- GPU memory pool available but must be managed properly
+
 IMPORTANT INSTRUCTIONS:
 - The script will run in the directory: /home/vpatel69/R1/App/output/
 - Load the dataset using: df = pd.read_csv('../datasets/{self.dataset_info['name']}')
@@ -172,6 +181,12 @@ IMPORTANT INSTRUCTIONS:
 - Create and save visualizations using matplotlib (save to current directory with plt.savefig(), NOT plt.show())
 - DO NOT use try-except blocks (error handling is done by the execution environment)
 - Focus on GPU-accelerated operations that showcase performance benefits
+
+CRITICAL SOL ENVIRONMENT CONSTRAINTS:
+- cuDF CANNOT create DataFrames with mixed data types (strings + numbers in same operation)
+- ALWAYS separate string/categorical columns from numeric operations
+- cuDF DataFrame creation will fail with "Cannot create column with mixed types" error
+- Solution: Create cuDF only with numeric columns, handle strings separately
 
 GPU LIBRARY USAGE GUIDELINES:
 - Use cudf.DataFrame for GPU DataFrames, NOT cuml.DataFrame (cuML has no DataFrame class)
@@ -208,19 +223,22 @@ from cuml.linear_model import LinearRegression  # Import specific algorithms
 df = pd.read_csv('../datasets/{self.dataset_info['name']}')
 print(f"Dataset loaded: {{df.shape}}")
 
-# Convert to cuDF for GPU acceleration
-gdf = cudf.from_pandas(df)
-print("Data converted to cuDF format")
+# CRITICAL: Separate numeric and string columns for Sol environment
+numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
+string_columns = df.select_dtypes(include=['object']).columns.tolist()
+print(f"Numeric columns: {{numeric_columns}}")
+print(f"String columns: {{string_columns}}")
 
-# Check data types and filter numeric columns for GPU operations
-print("Data types:", gdf.dtypes)
-numeric_gdf = gdf.select_dtypes(include=['number'])
-print(f"Numeric columns: {{numeric_gdf.columns.tolist()}}")
+# Convert ONLY numeric data to cuDF (mixed types will fail on Sol)
+numeric_df = df[numeric_columns]
+gdf = cudf.from_pandas(numeric_df)
+print("Numeric data converted to cuDF format")
 
 # Your analysis code here
-# Use numeric_gdf.corr() for correlations on numeric data only
+# Use gdf.corr() for correlations (only numeric data in gdf)
 # Use proper cuML imports for machine learning algorithms  
 # For plotting: use gdf['column'].to_numpy() to convert cuDF to numpy
+# Handle string columns separately with pandas if needed
 # Create visualizations with plt.savefig('filename.png') NOT plt.show()
 
 print("Analysis completed successfully")
@@ -359,16 +377,25 @@ print("Fallback analysis completed successfully")"""
             
             # Handle plots
             plot_images = []
+            print(f"DEBUG: result.get('plots'): {result.get('plots')}")
+            print(f"DEBUG: result keys: {result.keys()}")
+            
             if result.get("plots"):
+                print(f"DEBUG: Found {len(result['plots'])} plots")
                 for i, plot_data in enumerate(result["plots"]):
                     try:
+                        print(f"DEBUG: Processing plot {i}, data length: {len(plot_data)}")
                         # Decode base64 plot data
                         image_data = base64.b64decode(plot_data)
                         image = Image.open(io.BytesIO(image_data))
                         plot_images.append(image)
+                        print(f"DEBUG: Successfully processed plot {i}")
                     except Exception as e:
                         print(f"Error processing plot {i}: {e}")
+            else:
+                print("DEBUG: No plots found in result")
             
+            print(f"DEBUG: Total plot_images: {len(plot_images)}")
             return output_text, plot_images[0] if plot_images else None, ""
                 
         except Exception as e:
