@@ -4,7 +4,7 @@ from rag_agent import RAGAgent
 from code_optimizer import CodeOptimizer
 from gpu_mentor import GPUMentor
 from langchain.tools.retriever import create_retriever_tool
-from benchmark import run_benchmark
+from benchmark import run_benchmark  # Using the updated benchmark implementation
 
 class GPUMentorApp:
     """Main application class for the GPU Mentor."""

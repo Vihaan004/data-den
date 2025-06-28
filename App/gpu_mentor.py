@@ -1,8 +1,9 @@
 from typing import Dict, List, Any, Tuple
 import time
+import re
 from datetime import datetime
 from langchain_core.messages import HumanMessage
-from benchmark import run_benchmark  # Use benchmark.py instead of sol_job_runner
+from benchmark import run_benchmark, format_execution_result  # Using the renamed benchmark.py
 
 class GPUMentor:
     """Main GPU Mentor class that coordinates RAG agent and code optimization."""
@@ -248,28 +249,31 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
         try:
             print("🚀 Starting code execution comparison on Sol supercomputer...")
             
-            # Run both codes using benchmark.py
+            # Run both codes using the new benchmark implementation
             results = run_benchmark(original_code, optimized_code, "/home/vpatel69/R1/App/output")
             
+            # Use the formatted results directly from benchmark_new.py
+            formatted_results = format_execution_result(results)
+            
             # Format CPU code results
-            cpu_success = "TOTAL CPU EXECUTION TIME" in results["cpu"]["stdout"] and "✅" in results["cpu"]["stdout"]
-            cpu_time = self._extract_execution_time(results["cpu"]["stdout"])
+            cpu_success = formatted_results["cpu"]["status"] == "Success"
+            cpu_time = formatted_results["cpu"]["execution_time"]
             original_result = {
                 "status": "completed" if cpu_success else "failed",
                 "stdout": results["cpu"]["stdout"],
-                "stderr": "", # Removing stderr from output display
-                "execution_time": cpu_time or 0.001  # Ensure we have a non-zero time
+                "stderr": "",  # Removing stderr from output display
+                "execution_time": cpu_time if cpu_time else 0.001  # Ensure we have a non-zero time
             }
             original_output = self._format_execution_result(original_result, "Original CPU Code")
             
             # Format GPU code results
-            gpu_success = "TOTAL GPU EXECUTION TIME" in results["gpu"]["stdout"] and "✅" in results["gpu"]["stdout"]
-            gpu_time = self._extract_execution_time(results["gpu"]["stdout"])
+            gpu_success = formatted_results["gpu"]["status"] == "Success"
+            gpu_time = formatted_results["gpu"]["execution_time"]
             optimized_result = {
                 "status": "completed" if gpu_success else "failed",
                 "stdout": results["gpu"]["stdout"],
-                "stderr": "", # Removing stderr from output display
-                "execution_time": gpu_time or 0.001  # Ensure we have a non-zero time
+                "stderr": "",  # Removing stderr from output display
+                "execution_time": gpu_time if gpu_time else 0.001  # Ensure we have a non-zero time
             }
             optimized_output = self._format_execution_result(optimized_result, "GPU-Optimized Code")
             
