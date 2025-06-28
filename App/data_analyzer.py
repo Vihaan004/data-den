@@ -369,10 +369,10 @@ print("Fallback analysis completed successfully")"""
     def execute_analysis(self, code):
         """Execute the analysis code using the job executor."""
         if self.current_dataset is None or self.current_dataset_path is None:
-            return "❌ Please load a dataset first.", None
+            return "❌ Please load a dataset first.", []
         
         if not code.strip():
-            return "❌ Please generate code first.", None
+            return "❌ Please generate code first.", []
         
         try:
             # Clean output directory before running new analysis
@@ -395,19 +395,24 @@ print("Fallback analysis completed successfully")"""
             # Handle plots
             plot_images = []
             if result.get("plots"):
+                print(f"Processing {len(result['plots'])} plots from analysis")
                 for i, plot_data in enumerate(result["plots"]):
                     try:
                         # Decode base64 plot data
                         image_data = base64.b64decode(plot_data)
                         image = Image.open(io.BytesIO(image_data))
                         plot_images.append(image)
+                        print(f"Successfully processed plot {i+1}/{len(result['plots'])}")
                     except Exception as e:
                         print(f"Error processing plot {i}: {e}")
+            else:
+                print("No plots found in analysis results")
             
-            return output_text, plot_images[0] if plot_images else None
+            print(f"Returning {len(plot_images)} plot images to UI")
+            return output_text, plot_images if plot_images else []
                 
         except Exception as e:
-            return f"❌ Error executing analysis: {str(e)}", None
+            return f"❌ Error executing analysis: {str(e)}", []
     
     def create_interface(self):
         """Create the Gradio interface for data analysis."""
@@ -469,7 +474,14 @@ print("Fallback analysis completed successfully")"""
             with gr.Column(scale=2):
                 execution_output = gr.Markdown("### Execute analysis to see results")
             with gr.Column(scale=1):
-                plot_output = gr.Image(label="📈 Generated Plots")
+                plot_output = gr.Gallery(
+                    label="📈 Generated Plots",
+                    show_label=True,
+                    elem_id="plot-gallery",
+                    columns=1,
+                    rows=2,
+                    height="auto"
+                )
     
         
         # Event handlers

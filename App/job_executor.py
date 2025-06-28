@@ -116,14 +116,14 @@ def extract_plots_from_directory(output_dir):
     # Look for PNG files in the output directory
     png_files = list(output_path.glob("*.png"))
     print(f"DEBUG: Looking for plots in {output_dir}")
-    print(f"DEBUG: Found PNG files: {[f.name for f in png_files]}")
+    print(f"DEBUG: Found {len(png_files)} PNG files: {[f.name for f in png_files]}")
     
-    for png_file in png_files:
+    for i, png_file in enumerate(png_files):
         try:
             with open(png_file, 'rb') as f:
                 plot_data = base64.b64encode(f.read()).decode()
                 plots.append(plot_data)
-                print(f"DEBUG: Successfully encoded plot: {png_file.name}")
+                print(f"DEBUG: Successfully encoded plot {i+1}/{len(png_files)}: {png_file.name}")
         except Exception as e:
             print(f"DEBUG: Error reading plot {png_file.name}: {e}")
     
