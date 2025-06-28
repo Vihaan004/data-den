@@ -173,13 +173,32 @@ print(f"Labels shape: {labels.shape}")"""
                     with gr.Column(scale=3):
                         chatbot = gr.Chatbot(
                             height=400, 
-                            label="Conversation",
-                            type="messages"
+                            label="Conversation (with Memory)",
+                            type="messages",
+                            value=[{
+                                "role": "assistant", 
+                                "content": """👋 **Welcome to GPU Mentor!**
+
+I'm your AI assistant for GPU acceleration with NVIDIA Rapids libraries. 
+
+🧠 **New Feature**: I now have **conversation memory**! You can:
+- Ask follow-up questions and I'll remember our previous discussion
+- Reference earlier topics with phrases like "what about...", "tell me more...", etc.
+- Build on our conversation naturally
+
+🚀 **What I can help with**:
+- Analyze Python code for GPU optimization opportunities  
+- Convert NumPy → CuPy, Pandas → cuDF, scikit-learn → cuML
+- Explain GPU acceleration concepts and best practices
+- Answer follow-up questions based on our conversation
+
+Feel free to ask questions about GPU acceleration or paste code for analysis!"""
+                            }]
                         )
                         
                         with gr.Row():
                             message_input = gr.Textbox(
-                                placeholder="Ask about GPU acceleration...",
+                                placeholder="Ask about GPU acceleration, or ask follow-up questions...",
                                 label="Your Question",
                                 scale=4
                             )
@@ -192,7 +211,7 @@ print(f"Labels shape: {labels.shape}")"""
                             max_lines=20
                         )
                         
-                        clear_btn = gr.Button("Clear Chat", variant="secondary")
+                        clear_btn = gr.Button("🧹 Clear Chat & Memory", variant="secondary")
                     
                     with gr.Column(scale=1):
                         sample_dropdown = gr.Dropdown(
@@ -312,7 +331,26 @@ print(f"Labels shape: {labels.shape}")"""
                 return ""
             
             def clear_chat():
-                return []
+                # Clear conversation memory in the RAG agent
+                if self.gpu_mentor:
+                    self.gpu_mentor.clear_conversation_memory()
+                # Return a clean slate with a fresh welcome message
+                return [{
+                    "role": "assistant", 
+                    "content": """👋 **Welcome back to GPU Mentor!**
+
+🧹 **Chat memory cleared** - Starting fresh!
+
+🧠 **Conversation Memory**: I can now remember our conversation and answer follow-up questions.
+
+🚀 **What I can help with**:
+- Analyze Python code for GPU optimization opportunities  
+- Convert NumPy → CuPy, Pandas → cuDF, scikit-learn → cuML
+- Explain GPU acceleration concepts and best practices
+- Answer follow-up questions based on our conversation
+
+Feel free to ask questions about GPU acceleration or paste code for analysis!"""
+                }]
             
             def clear_code():
                 return ""
