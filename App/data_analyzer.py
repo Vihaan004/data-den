@@ -40,7 +40,7 @@ class DataAnalyzer:
                 self.current_dataset_path = dataset_path
                 dataset_name = dataset_file
             else:
-                return "❌ Please select a dataset or upload a file.", "", ""
+                return "❌ Please select a dataset or upload a file.", ""
             
             self.current_dataset = df
             
@@ -60,9 +60,6 @@ class DataAnalyzer:
 {df.isnull().sum().to_string()}
 """
             
-            # Generate sample data preview
-            sample_data = df.head(10).to_string(max_cols=10, max_colwidth=30)
-            
             # Store dataset info for LLM
             self.dataset_info = {
                 "name": dataset_name,
@@ -75,10 +72,10 @@ class DataAnalyzer:
                 "categorical_columns": df.select_dtypes(include=['object']).columns.tolist()
             }
             
-            return info, sample_data, "✅ Dataset loaded successfully! You can now generate analysis suggestions."
+            return info, "✅ Dataset loaded successfully! You can now generate analysis suggestions."
             
         except Exception as e:
-            return f"❌ Error loading dataset: {str(e)}", "", ""
+            return f"❌ Error loading dataset: {str(e)}", ""
     
     def _format_column_info(self, df):
         """Format column information nicely."""
@@ -96,41 +93,43 @@ class DataAnalyzer:
             return "❌ Please load a dataset first."
         
         try:
-            # Prepare prompt for LLM
-            dataset_summary = f"""
-Dataset Name: {self.dataset_info['name']}
-Shape: {self.dataset_info['shape'][0]} rows × {self.dataset_info['shape'][1]} columns
+            # Prepare simple prompt for LLM
+            prompt = f"""Based on this dataset, suggest exactly 5 specific data analysis tasks that would benefit from GPU acceleration:
+
+Dataset: {self.dataset_info['name']}
 Columns: {', '.join(self.dataset_info['columns'])}
-Numeric Columns: {', '.join(self.dataset_info['numeric_columns'])}
-Categorical Columns: {', '.join(self.dataset_info['categorical_columns'])}
-Data Types: {self.dataset_info['dtypes']}
+Numeric columns: {', '.join(self.dataset_info['numeric_columns'])}
+Categorical columns: {', '.join(self.dataset_info['categorical_columns'])}
+Sample data: {pd.DataFrame(self.dataset_info['sample_data']).to_string()}
 
-Sample Data (first 5 rows):
-{pd.DataFrame(self.dataset_info['sample_data']).to_string()}
-"""
+Provide ONLY a numbered list of 5 simple analysis tasks that could be performed on this dataset to gain insights, with clear, specific titles. No explanations, no descriptions, just the analysis names. For example:
+1. K-Means Customer Segmentation
+2. Sales Correlation Analysis
+3. Employee Performance Prediction
+4. Salary Distribution Analysis
+5. Department Efficiency Clustering"""
+
+            # Try direct LLM call first, bypass RAG if it's causing issues
+            print(f"DEBUG: Sending simplified prompt to RAG agent, length: {len(prompt)}")
+            try:
+                # Try to use the chat model directly for more reliable responses
+                if hasattr(self.rag_agent, 'chat_llm_model') and self.rag_agent.chat_llm_model:
+                    from langchain_core.messages import HumanMessage
+                    response = self.rag_agent.chat_llm_model.invoke([HumanMessage(content=prompt)])
+                    response = response.content if hasattr(response, 'content') else str(response)
+                else:
+                    response = self.rag_agent.query(prompt)
+            except Exception as e:
+                print(f"DEBUG: LLM call failed: {e}")
+                response = ""
             
-            prompt = f"""I need help with GPU acceleration for data analysis. Please analyze this dataset and suggest 5-7 specific data analysis operations that would be particularly effective with GPU acceleration using libraries like CuPy, cuDF, cuML, and RAPIDS. Focus on operations that would showcase GPU performance benefits over CPU implementations.
-
-{dataset_summary}
-
-For each suggestion, provide:
-1. A clear, specific title (e.g. "K-Means Clustering Analysis", "Time Series Correlation Analysis")
-2. A brief description of what insights it would provide
-3. Why GPU acceleration with RAPIDS/CuPy/cuDF would be beneficial
-4. What specific GPU computing advantages it would demonstrate
-
-Format your response as a numbered list with clear titles and descriptions. Focus on practical, executable analyses that would work well with this specific dataset's structure and content and would benefit from GPU computing power."""
-
-            # Get suggestions from RAG agent
-            print(f"DEBUG: Sending prompt to RAG agent, length: {len(prompt)}")
-            response = self.rag_agent.query(prompt)
             print(f"DEBUG: RAG agent response length: {len(response) if response else 0}")
             print(f"DEBUG: RAG agent response preview: {response[:200] if response else 'None'}...")
             
-            # If RAG agent returns empty response, provide fallback suggestions
+            # If still empty, provide a simple fallback
             if not response or len(response.strip()) == 0:
-                print("DEBUG: RAG agent returned empty response, using fallback suggestions")
-                response = self._get_fallback_suggestions()
+                print("DEBUG: Using simple fallback suggestions")
+                response = self._get_simple_fallback_suggestions()
             
             return f"## 🔍 Suggested GPU-Accelerated Analyses\\n\\n{response}"
             
@@ -158,23 +157,42 @@ Sample Data:
 {pd.DataFrame(self.dataset_info['sample_data']).to_string()}
 """
             
-            prompt = f"""Generate a complete Python program for GPU-accelerated data analysis based on this request: "{selected_suggestion}"
+            prompt = f"""Generate a complete Python script for data analysis. The analysis task is: "{selected_suggestion}"
 
 Dataset Information:
 {dataset_summary}
 
-Requirements:
-1. Write a complete, executable Python program optimized for GPU using RAPIDS libraries (cuDF, cuML, CuPy)
-2. The dataset is already loaded as 'df' (pandas DataFrame) - convert to cuDF as needed
-3. Include data visualization using matplotlib (save plots, don't show them)
-4. Add clear comments explaining each step
-5. Include performance-oriented code that showcases GPU acceleration benefits
-6. Handle potential data issues gracefully
-7. Include print statements to show intermediate results and insights
+IMPORTANT INSTRUCTIONS:
+- The script will run in the directory: /home/vpatel69/R1/App/output/
+- Load the dataset using: df = pd.read_csv('../datasets/{self.dataset_info['name']}')
+- Import ALL necessary libraries at the top (pandas, cudf, cuml, cupy, matplotlib, numpy, sklearn, etc.)
+- Write a complete analysis script with proper data loading, analysis, and visualization
+- Use GPU libraries (cuDF, cuML, CuPy) when appropriate for acceleration
+- Include detailed print statements showing progress and results
+- Create and save visualizations using matplotlib (save to current directory with plt.savefig(), NOT plt.show())
+- DO NOT use try-except blocks (error handling is done by the execution environment)
+- Focus on GPU-accelerated operations that showcase performance benefits
 
-Focus on practical, working code that demonstrates GPU acceleration advantages. Make sure the code is complete and can run independently.
+Generate a complete, standalone Python script:
 
-Provide ONLY the Python code without any markdown formatting or explanation text - just clean, executable Python code."""
+EXAMPLE STRUCTURE:
+```python
+import pandas as pd
+import cudf
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Load dataset
+df = pd.read_csv('../datasets/{self.dataset_info['name']}')
+print(f"Dataset loaded: {{df.shape}}")
+
+# Your analysis code here
+# Convert to cuDF if beneficial: gdf = cudf.from_pandas(df)
+# Perform GPU-accelerated operations
+# Create visualizations with plt.savefig('filename.png') NOT plt.show()
+
+print("Analysis completed successfully")
+```"""
             
             # Get code from RAG agent
             code_response = self.rag_agent.query(prompt)
@@ -204,8 +222,12 @@ Keep the explanation concise but informative, suitable for someone learning abou
             return f"❌ Error generating code: {str(e)}", ""
     
     def _extract_code_from_response(self, response):
-        """Extract clean Python code from LLM response."""
+        """Extract clean Python code from LLM response and validate syntax."""
+        if not response:
+            return "# No code generated\nprint('Error: No code was generated')"
+        
         # Remove markdown code blocks if present
+        code = response
         if "```python" in response:
             # Extract content between ```python and ```
             start = response.find("```python") + 9
@@ -225,7 +247,60 @@ Keep the explanation concise but informative, suitable for someone learning abou
         else:
             code = response.strip()
         
-        return code
+        # Basic syntax validation and cleanup
+        try:
+            # Try to compile the code to check for syntax errors
+            compile(code, '<string>', 'exec')
+            return code
+        except SyntaxError as e:
+            print(f"DEBUG: Syntax error in generated code: {e}")
+            # Return a safe fallback code that is a complete script
+            return f"""# Fallback analysis script
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Load dataset
+df = pd.read_csv('../datasets/{self.dataset_info['name']}')
+print(f"Dataset loaded: {{df.shape[0]}} rows, {{df.shape[1]}} columns")
+
+# Basic dataset analysis
+print("\\nDataset Info:")
+print(df.info())
+
+print("\\nDataset Columns:")
+print(df.columns.tolist())
+
+print("\\nSummary Statistics:")
+numeric_cols = df.select_dtypes(include=['number']).columns
+if len(numeric_cols) > 0:
+    print(df[numeric_cols].describe())
+
+# Create visualizations
+if len(numeric_cols) > 0:
+    # Distribution plots
+    plt.figure(figsize=(12, 8))
+    df[numeric_cols].hist(bins=20, alpha=0.7)
+    plt.tight_layout()
+    plt.savefig('data_distributions.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    print("Data distribution plot saved as 'data_distributions.png'")
+    
+    # Correlation heatmap if we have multiple numeric columns
+    if len(numeric_cols) > 1:
+        plt.figure(figsize=(10, 8))
+        correlation_matrix = df[numeric_cols].corr()
+        plt.imshow(correlation_matrix, cmap='coolwarm', aspect='auto')
+        plt.colorbar()
+        plt.xticks(range(len(numeric_cols)), numeric_cols, rotation=45)
+        plt.yticks(range(len(numeric_cols)), numeric_cols)
+        plt.title('Correlation Matrix')
+        plt.tight_layout()
+        plt.savefig('correlation_matrix.png', dpi=150, bbox_inches='tight')
+        plt.close()
+        print("Correlation matrix plot saved as 'correlation_matrix.png'")
+
+print("Fallback analysis completed successfully")"""
     
     def execute_analysis(self, code):
         """Execute the analysis code using the job executor."""
@@ -239,47 +314,36 @@ Keep the explanation concise but informative, suitable for someone learning abou
             # Run the analysis job
             result = run_data_analysis(code, self.current_dataset_path, "./output")
             
-            if result["success"]:
-                output_text = f"""## ✅ Analysis Completed Successfully
+            # Always show results with static header (success/failure determined by warnings in error file)
+            execution_time_text = f"{result['execution_time']:.3f} seconds" if result.get('execution_time') else "Unknown"
+            job_id_text = result.get('job_id', 'N/A')
+            timestamp_text = result.get('timestamp', 'N/A')
+            
+            output_text = f"""## 📊 Analysis Results
 
-**Execution Time:** {result['execution_time']:.3f} seconds
-**Job ID:** {result['job_id']}
-
-### Output:
-```
-{result['output']}
-```
-"""
-                
-                # Handle plots
-                plot_images = []
-                if result["plots"]:
-                    for i, plot_data in enumerate(result["plots"]):
-                        try:
-                            # Decode base64 plot data
-                            image_data = base64.b64decode(plot_data)
-                            image = Image.open(io.BytesIO(image_data))
-                            plot_images.append(image)
-                        except Exception as e:
-                            print(f"Error processing plot {i}: {e}")
-                
-                return output_text, plot_images[0] if plot_images else None, ""
-            else:
-                error_text = f"""## ❌ Analysis Failed
-
-**Job ID:** {result.get('job_id', 'N/A')}
-
-### Error:
-```
-{result['error']}
-```
+**Execution Time:** {execution_time_text}
+**SLURM Job ID:** {job_id_text}
+**File Timestamp:** {timestamp_text}
 
 ### Output:
 ```
 {result['output']}
 ```
 """
-                return error_text, None, ""
+            
+            # Handle plots
+            plot_images = []
+            if result.get("plots"):
+                for i, plot_data in enumerate(result["plots"]):
+                    try:
+                        # Decode base64 plot data
+                        image_data = base64.b64decode(plot_data)
+                        image = Image.open(io.BytesIO(image_data))
+                        plot_images.append(image)
+                    except Exception as e:
+                        print(f"Error processing plot {i}: {e}")
+            
+            return output_text, plot_images[0] if plot_images else None, ""
                 
         except Exception as e:
             return f"❌ Error executing analysis: {str(e)}", None, ""
@@ -308,14 +372,6 @@ Keep the explanation concise but informative, suitable for someone learning abou
                 dataset_info = gr.Markdown("### Dataset Info\\nNo dataset loaded.")
                 load_status = gr.Textbox(label="Status", interactive=False)
         
-        # Dataset Preview
-        with gr.Row():
-            dataset_preview = gr.Textbox(
-                label="📋 Dataset Preview (First 10 rows)",
-                lines=10,
-                interactive=False
-            )
-        
         gr.Markdown("---")
         
         # Analysis Suggestions Section
@@ -334,7 +390,7 @@ Keep the explanation concise but informative, suitable for someone learning abou
                     placeholder="Enter or copy one of the suggested analysis topics above...",
                     lines=2
                 )
-                generate_code_btn = gr.Button("⚡ Generate GPU Code", variant="secondary")
+                generate_code_btn = gr.Button("⚡ Generate Analysis", variant="secondary")
         
         # Generated Code and Explanation
         with gr.Row():
@@ -364,7 +420,7 @@ Keep the explanation concise but informative, suitable for someone learning abou
         load_btn.click(
             fn=self.load_dataset,
             inputs=[dataset_dropdown, dataset_upload],
-            outputs=[dataset_info, dataset_preview, load_status]
+            outputs=[dataset_info, load_status]
         )
         
         suggestions_btn.click(
@@ -385,67 +441,35 @@ Keep the explanation concise but informative, suitable for someone learning abou
             outputs=[execution_output, plot_output, execution_status]
         )
     
-    def _get_fallback_suggestions(self):
-        """Provide fallback suggestions when RAG agent fails."""
+    def _get_simple_fallback_suggestions(self):
+        """Provide simple fallback suggestions when LLM fails."""
         if self.dataset_info is None:
             return "❌ No dataset information available."
         
         # Analyze dataset characteristics to provide relevant suggestions
         numeric_cols = len(self.dataset_info['numeric_columns'])
         categorical_cols = len(self.dataset_info['categorical_columns'])
-        total_rows = self.dataset_info['shape'][0]
         
         suggestions = []
         
-        # Suggest clustering if we have numeric data
+        # Generate simple topic names based on dataset structure
         if numeric_cols >= 2:
-            suggestions.append("""**1. K-Means Clustering Analysis**
-   - Segment your data into meaningful groups based on numeric features
-   - Why GPU acceleration helps: Massively parallel distance calculations and centroid updates
-   - Expected benefit: 10-50x speedup on large datasets with cuML""")
+            suggestions.append("1. K-Means Clustering Analysis")
         
-        # Suggest correlation analysis for multiple numeric columns
         if numeric_cols >= 3:
-            suggestions.append("""**2. Correlation Matrix Analysis**
-   - Discover relationships between all numeric variables
-   - Why GPU acceleration helps: Parallel computation of pairwise correlations using cuDF
-   - Expected benefit: Faster matrix operations and memory bandwidth utilization""")
+            suggestions.append("2. Correlation Matrix Analysis")
         
-        # Suggest regression analysis
         if numeric_cols >= 2:
-            suggestions.append("""**3. Linear/Logistic Regression Analysis**
-   - Build predictive models and analyze feature importance
-   - Why GPU acceleration helps: Matrix operations and gradient computations optimized for GPU
-   - Expected benefit: Faster model training with cuML, especially on large datasets""")
+            suggestions.append("3. Linear Regression Analysis")
         
-        # Suggest PCA for high-dimensional data
         if numeric_cols >= 4:
-            suggestions.append("""**4. Principal Component Analysis (PCA)**
-   - Reduce dimensionality and visualize data patterns
-   - Why GPU acceleration helps: Parallel eigenvalue decomposition and matrix operations
-   - Expected benefit: Accelerated linear algebra operations with cuML""")
+            suggestions.append("4. Principal Component Analysis (PCA)")
         
-        # Suggest statistical aggregations
         if categorical_cols >= 1 and numeric_cols >= 1:
-            suggestions.append("""**5. Statistical Aggregations by Groups**
-   - Calculate summary statistics grouped by categorical variables
-   - Why GPU acceleration helps: Parallel aggregation operations across groups
-   - Expected benefit: High-throughput data processing with cuDF groupby operations""")
+            suggestions.append("5. Statistical Aggregations by Groups")
         
-        # Suggest random forest if we have enough features
-        if numeric_cols + categorical_cols >= 3:
-            suggestions.append("""**6. Random Forest Classification/Regression**
-   - Build ensemble models for prediction and feature ranking
-   - Why GPU acceleration helps: Parallel tree construction and prediction
-   - Expected benefit: Faster training and inference with cuML random forest""")
+        # Ensure we always have 5 suggestions
+        if len(suggestions) < 5:
+            suggestions.append("5. Data Distribution Analysis")
         
-        # Always suggest data profiling
-        suggestions.append("""**7. Advanced Data Profiling and Statistics**
-   - Generate comprehensive dataset statistics and distributions
-   - Why GPU acceleration helps: Parallel computation of multiple statistical measures
-   - Expected benefit: Faster data exploration and quality assessment with cuDF""")
-        
-        if not suggestions:
-            return "Based on your dataset structure, consider uploading a dataset with more numeric columns for better GPU acceleration opportunities."
-        
-        return "\\n\\n".join(suggestions[:6])  # Return up to 6 suggestions
+        return "\\n".join(suggestions[:5])  # Return exactly 5 suggestions

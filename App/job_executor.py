@@ -6,83 +6,69 @@ from pathlib import Path
 
 def wrap_data_analysis_code(code, dataset_path):
     """
-    Wrap data analysis code with dataset loading and GPU setup.
+    Create a simple wrapper for the LLM-generated analysis code.
     """
     wrapped_code = f"""import time
 import warnings
-import io
 import sys
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
-import base64
+import os
+
+# Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
 
-# Load dataset
-dataset_path = "{dataset_path}"
-df = pd.read_csv(dataset_path)
+# Change to the output directory where the script runs
+os.chdir('/home/vpatel69/R1/App/output/')
 
-# ===== DATA ANALYSIS EXECUTION =====
 print("="*50)
 print("DATA ANALYSIS EXECUTION")
 print("="*50)
+print(f"Execution start time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
+print(f"Working directory: {{os.getcwd()}}")
 
-print(f"Dataset loaded: {{dataset_path}}")
-print(f"Dataset shape: {{df.shape}}")
-print(f"Start time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
+# Start timing
+start_time = time.perf_counter()
 
+# Execute the LLM-generated analysis code
+{code}
+
+# Check for generated plots and encode them for display
+import glob
 try:
-    # GPU warmup if needed
-    try:
-        import cupy as cp
-        warmup_a = cp.random.rand(100, 100).astype(cp.float32)
-        warmup_b = cp.random.rand(100, 100).astype(cp.float32)
-        _ = cp.matmul(warmup_a, warmup_b)
-        cp.cuda.stream.get_current_stream().synchronize()
-        print("GPU warmup completed")
-    except Exception as gpu_err:
-        print(f"GPU warmup skipped: {{gpu_err}}")
-    
-    # Start timing
-    start_time = time.perf_counter()
-    
-    # Original code starts here
-{indent_code(code, 4)}
-    # Original code ends here
-    
-    # Stop timing
-    end_time = time.perf_counter()
-    execution_time = end_time - start_time
-    
-    # Show any plots
-    if plt.get_fignums():
-        print("\\n----- PLOTS GENERATED -----")
-        for fig_num in plt.get_fignums():
-            fig = plt.figure(fig_num)
-            # Save plot as base64 for display
-            import io
-            import base64
-            buffer = io.BytesIO()
-            fig.savefig(buffer, format='png', bbox_inches='tight', dpi=150)
-            buffer.seek(0)
-            plot_data = base64.b64encode(buffer.getvalue()).decode()
-            print(f"PLOT_DATA_START")
-            print(plot_data)
-            print(f"PLOT_DATA_END")
-            buffer.close()
-        plt.close('all')
-    
-    print("\\n" + "="*50)
-    print(f"TOTAL EXECUTION TIME: {{execution_time:.6f}} seconds")
-    print("✅ Data analysis completed successfully")
-    print("="*50)
+    import matplotlib.pyplot as plt
+except:
+    pass
 
-except Exception as e:
-    print(f"\\n❌ Error during execution: {{str(e)}}")
-    import traceback
-    traceback.print_exc()
-    print("="*50)
+# Look for any PNG files that were created
+plot_files = glob.glob('*.png')
+if plot_files:
+    print("\\n----- PLOTS GENERATED -----")
+    import base64
+    import io
+    for plot_file in plot_files:
+        try:
+            with open(plot_file, 'rb') as f:
+                plot_data = base64.b64encode(f.read()).decode()
+                print(f"PLOT_DATA_START")
+                print(plot_data)
+                print(f"PLOT_DATA_END")
+                print(f"Plot saved: {{plot_file}}")
+        except Exception as plot_err:
+            print(f"Error reading plot {{plot_file}}: {{plot_err}}")
+
+# Close any remaining matplotlib figures
+try:
+    plt.close('all')
+except:
+    pass
+
+# Calculate total execution time
+end_time = time.perf_counter()
+execution_time = end_time - start_time
+
+print("\\n" + "="*50)
+print(f"TOTAL EXECUTION TIME: {{execution_time:.6f}} seconds")
+print("✅ Data analysis completed successfully")
+print("="*50)
 """
     return wrapped_code
 
@@ -221,6 +207,23 @@ python {py_file.name}
         job_id = submit_slurm_job(str(sh_file))
         print(f"Submitted job {job_id}")
         
+        # Rename files to include job ID for easier tracking
+        py_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.py"
+        sh_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.sh"
+        out_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.out"
+        err_file_with_jobid = Path(output_dir) / f"analysis_{timestamp}_{job_id}.err"
+        
+        # Rename the files to include job ID
+        try:
+            py_file.rename(py_file_with_jobid)
+            sh_file.rename(sh_file_with_jobid)
+            py_file = py_file_with_jobid
+            sh_file = sh_file_with_jobid
+            out_file = out_file_with_jobid
+            err_file = err_file_with_jobid
+        except Exception as rename_err:
+            print(f"Warning: Could not rename files with job ID: {rename_err}")
+        
         # Wait for completion
         if wait_for_job(job_id, timeout=600):  # 10 minute timeout
             # Read output
@@ -248,7 +251,14 @@ python {py_file.name}
                 "error": error,
                 "execution_time": execution_time,
                 "plots": plots,
-                "job_id": job_id
+                "job_id": job_id,
+                "timestamp": timestamp,
+                "files": {
+                    "python": str(py_file),
+                    "script": str(sh_file),
+                    "output": str(out_file),
+                    "error": str(err_file)
+                }
             }
         else:
             return {
@@ -257,7 +267,14 @@ python {py_file.name}
                 "error": "Job execution exceeded 10 minute timeout",
                 "execution_time": None,
                 "plots": [],
-                "job_id": job_id
+                "job_id": job_id,
+                "timestamp": timestamp,
+                "files": {
+                    "python": str(py_file),
+                    "script": str(sh_file),
+                    "output": str(out_file),
+                    "error": str(err_file)
+                }
             }
     
     except Exception as e:
@@ -267,5 +284,7 @@ python {py_file.name}
             "error": str(e),
             "execution_time": None,
             "plots": [],
-            "job_id": None
+            "job_id": None,
+            "timestamp": timestamp,
+            "files": {}
         }
