@@ -331,43 +331,58 @@ Focus on practical, working code that demonstrates clear GPU acceleration benefi
         
         output_parts.append("")  # Empty line
         
-        # Program output
-        if stdout:
+        # Extract actual program output
+        program_output = ""
+        if "----- PROGRAM OUTPUT -----" in stdout and "----- END PROGRAM OUTPUT -----" in stdout:
+            output_start = stdout.find("----- PROGRAM OUTPUT -----") + len("----- PROGRAM OUTPUT -----")
+            output_end = stdout.find("----- END PROGRAM OUTPUT -----")
+            if output_start > 0 and output_end > output_start:
+                program_output = stdout[output_start:output_end].strip()
+        
+        # Show program output first if available
+        if program_output:
             output_parts.append("**📤 Program Output:**")
             output_parts.append("```")
-            # Clean up the output to show only the relevant parts
-            lines = stdout.split('\n')
-            relevant_lines = []
-            
-            # Only show benchmark header, timing info, and success/failure messages
-            for line in lines:
-                if any(marker in line for marker in ["BENCHMARK EXECUTION"]):
-                    relevant_lines.append(line)
-                elif "Start time:" in line:
-                    relevant_lines.append(line)
-                elif "End time:" in line:
-                    relevant_lines.append(line)
-                elif "EXECUTION TIME:" in line:
-                    # Format the execution time line to make it stand out
-                    relevant_lines.append(line)
-                elif "✅" in line or "completed successfully" in line:
-                    relevant_lines.append(line)
-                elif "Using" in line and "iterations" in line:
-                    relevant_lines.append(line)
-                elif "averaged over" in line:
-                    relevant_lines.append(line)
-            
-            if relevant_lines:
-                output_parts.append('\n'.join(relevant_lines))
-            else:
-                # Fallback to showing just the execution time line if we can find it
-                time_line = next((line for line in lines if "EXECUTION TIME" in line), None)
-                if time_line:
-                    output_parts.append(time_line)
-                else:
-                    output_parts.append("No timing information available.")
+            output_parts.append(program_output)
             output_parts.append("```")
             output_parts.append("")
+        
+        # Then show performance metrics
+        output_parts.append("**📊 Performance Metrics:**")
+        output_parts.append("```")
+        # Extract performance-related lines
+        lines = stdout.split('\n')
+        performance_lines = []
+        
+        # Only show benchmark header, timing info, and success/failure messages
+        for line in lines:
+            if any(marker in line for marker in ["BENCHMARK EXECUTION"]):
+                performance_lines.append(line)
+            elif "Start time:" in line:
+                performance_lines.append(line)
+            elif "End time:" in line:
+                performance_lines.append(line)
+            elif "EXECUTION TIME:" in line:
+                # Format the execution time line to make it stand out
+                performance_lines.append(line)
+            elif "✅" in line or "completed successfully" in line:
+                performance_lines.append(line)
+            elif "Using" in line and "iterations" in line:
+                performance_lines.append(line)
+            elif "averaged over" in line:
+                performance_lines.append(line)
+        
+        if performance_lines:
+            output_parts.append('\n'.join(performance_lines))
+        else:
+            # Fallback to showing just the execution time line if we can find it
+            time_line = next((line for line in lines if "EXECUTION TIME" in line), None)
+            if time_line:
+                output_parts.append(time_line)
+            else:
+                output_parts.append("No timing information available.")
+        output_parts.append("```")
+        output_parts.append("")
         
         # Job error notification (without showing actual errors)
         if status != "completed":

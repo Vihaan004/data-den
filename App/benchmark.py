@@ -11,6 +11,8 @@ def wrap_cpu_code(code):
     """
     wrapped_code = f"""import time
 import warnings
+import io
+import sys
 warnings.filterwarnings("ignore")
 
 # ===== CPU BENCHMARK =====
@@ -25,15 +27,29 @@ total_time = 0
 print(f"Start time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
 
 try:
-    # Original code starts here
+    # Capture original program output
+    original_stdout = sys.stdout
+    program_output = io.StringIO()
+    sys.stdout = program_output
+    
+    # Original code starts here (first run to capture output)
 {indent_code(code, 4)}
     # Original code ends here
     
-    # Main timing loop
+    # Restore stdout for benchmark information
+    sys.stdout = original_stdout
+    print("\\n----- PROGRAM OUTPUT -----")
+    print(program_output.getvalue())
+    print("----- END PROGRAM OUTPUT -----\\n")
+    
+    # Reset program_output for clean performance measurement
+    program_output = io.StringIO()
+    
+    # Main timing loop (without capturing output to avoid overhead)
     for i in range(iterations):
         start_time = time.perf_counter()
         
-        # Run computation again
+        # Run computation again (output discarded for timing purposes)
 {indent_code(code, 8)}
         
         end_time = time.perf_counter()
@@ -48,6 +64,9 @@ try:
     print(f"TOTAL CPU EXECUTION TIME: {{avg_time:.6f}} seconds (averaged over {{iterations_completed}} runs)")
     print("✅ CPU benchmark completed successfully!")
 except Exception as e:
+    # Restore stdout in case of exception
+    if 'original_stdout' in locals():
+        sys.stdout = original_stdout
     iterations_completed = max(1, iterations_completed)
     if iterations_completed > 0:
         avg_time = total_time / iterations_completed
@@ -66,6 +85,8 @@ def wrap_gpu_code(code):
     wrapped_code = f"""import time
 import warnings
 import cupy as cp
+import io
+import sys
 warnings.filterwarnings("ignore")
 
 # ===== GPU BENCHMARK =====
@@ -92,9 +113,23 @@ total_time = 0
 print(f"Start time: {{time.strftime('%Y-%m-%d %H:%M:%S')}}")
 
 try:
-    # Original code starts here (run once to initialize)
+    # Capture original program output
+    original_stdout = sys.stdout
+    program_output = io.StringIO()
+    sys.stdout = program_output
+    
+    # Original code starts here (first run to capture output)
 {indent_code(code, 4)}
     # Original code ends here
+    
+    # Restore stdout for benchmark information
+    sys.stdout = original_stdout
+    print("\\n----- PROGRAM OUTPUT -----")
+    print(program_output.getvalue())
+    print("----- END PROGRAM OUTPUT -----\\n")
+    
+    # Reset program_output for clean performance measurement
+    program_output = io.StringIO()
     
     # Make sure all GPU operations have completed
     cp.cuda.stream.get_current_stream().synchronize()
@@ -121,6 +156,9 @@ try:
     print(f"TOTAL GPU EXECUTION TIME: {{avg_time:.6f}} seconds (averaged over {{iterations_completed}} runs)")
     print("✅ GPU benchmark completed successfully!")
 except Exception as e:
+    # Restore stdout in case of exception
+    if 'original_stdout' in locals():
+        sys.stdout = original_stdout
     iterations_completed = max(1, iterations_completed)
     if iterations_completed > 0:
         avg_time = total_time / iterations_completed
