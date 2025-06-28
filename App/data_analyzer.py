@@ -377,14 +377,12 @@ print("Fallback analysis completed successfully")"""
             
             # Handle plots
             plot_images = []
-            print(f"DEBUG: result.get('plots'): {result.get('plots')}")
-            print(f"DEBUG: result keys: {result.keys()}")
-            
+            print(f"DEBUG: Checking for plots in result, plots key exists: {result.get('plots') is not None}")
             if result.get("plots"):
                 print(f"DEBUG: Found {len(result['plots'])} plots")
                 for i, plot_data in enumerate(result["plots"]):
                     try:
-                        print(f"DEBUG: Processing plot {i}, data length: {len(plot_data)}")
+                        print(f"DEBUG: Processing plot {i}, data length: {len(plot_data) if plot_data else 0}")
                         # Decode base64 plot data
                         image_data = base64.b64decode(plot_data)
                         image = Image.open(io.BytesIO(image_data))
@@ -395,7 +393,7 @@ print("Fallback analysis completed successfully")"""
             else:
                 print("DEBUG: No plots found in result")
             
-            print(f"DEBUG: Total plot_images: {len(plot_images)}")
+            print(f"DEBUG: Returning {len(plot_images)} plot images")
             return output_text, plot_images[0] if plot_images else None, ""
                 
         except Exception as e:

@@ -39,13 +39,19 @@ except:
     pass
 
 # Look for any PNG files that were created
+import base64
+import glob
+working_dir = os.getcwd()
+print(f"DEBUG: Looking for plots in: {{working_dir}}")
 plot_files = glob.glob('*.png')
+print(f"DEBUG: Found plot files: {{plot_files}}")
+
 if plot_files:
     print("\\n----- PLOTS GENERATED -----")
-    import base64
-    import io
     for plot_file in plot_files:
         try:
+            full_path = os.path.join(working_dir, plot_file)
+            print(f"DEBUG: Reading plot file: {{full_path}}")
             with open(plot_file, 'rb') as f:
                 plot_data = base64.b64encode(f.read()).decode()
                 print(f"PLOT_DATA_START")
@@ -54,6 +60,11 @@ if plot_files:
                 print(f"Plot saved: {{plot_file}}")
         except Exception as plot_err:
             print(f"Error reading plot {{plot_file}}: {{plot_err}}")
+else:
+    print("DEBUG: No PNG files found in working directory")
+    # List all files to debug
+    all_files = os.listdir('.')
+    print(f"DEBUG: All files in working directory: {{all_files}}")
 
 # Close any remaining matplotlib figures
 try:
