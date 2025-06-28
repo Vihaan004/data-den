@@ -1,103 +1,182 @@
 import os
-from typing import List, Dict, Any
+import glob
+from typing import List, Dict, Any, Tuple
 from langchain_community.document_loaders import WebBaseLoader, NotebookLoader
 from langchain.docstore.document import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from config import (KNOWLEDGE_URLS, NOTEBOOK_PATHS, EMBEDDING_MODEL, 
-                   CHUNK_SIZE, CHUNK_OVERLAP, USE_PERSISTENT_VECTORSTORE, 
-                   VECTORSTORE_PERSIST_DIRECTORY)
+from config import (EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, 
+                   USE_PERSISTENT_VECTORSTORE, VECTORSTORE_PERSIST_DIRECTORY)
+
+class KnowledgeBaseStats:
+    """Track statistics about the knowledge base."""
+    def __init__(self):
+        self.web_sources = 0
+        self.web_sources_failed = 0
+        self.notebooks = 0
+        self.notebooks_failed = 0
+        self.curated_content = 0
+        self.total_documents = 0
+        self.total_chunks = 0
+        self.failed_sources = []
+        
+    def add_failed_source(self, source: str, error: str):
+        self.failed_sources.append({"source": source, "error": error})
+        
+    def get_summary(self) -> str:
+        """Get a formatted summary of the knowledge base."""
+        summary = f"""
+📊 Knowledge Base Summary:
+• Web Sources: {self.web_sources} loaded, {self.web_sources_failed} failed
+• Notebooks: {self.notebooks} loaded, {self.notebooks_failed} failed  
+• Curated Content: {self.curated_content} pieces
+• Total Documents: {self.total_documents}
+• Total Chunks: {self.total_chunks}
+"""
+        if self.failed_sources:
+            summary += f"\n⚠️ Failed Sources ({len(self.failed_sources)}):\n"
+            for fail in self.failed_sources[:3]:  # Show first 3 failures
+                summary += f"  • {fail['source']}: {fail['error'][:60]}...\n"
+            if len(self.failed_sources) > 3:
+                summary += f"  • ... and {len(self.failed_sources) - 3} more\n"
+        return summary
 
 class DocumentLoader:
-    """Handle loading and processing of documents for the RAG system."""
+    """Enhanced document loader that uses centralized knowledge directory."""
     
-    def __init__(self):
+    def __init__(self, knowledge_dir: str = "./knowledge"):
+        self.knowledge_dir = knowledge_dir
         self.docs = []
         self.doc_splits = []
-        
+        self.stats = KnowledgeBaseStats()
     def load_documents(self) -> List[Document]:
-        """Load documents from various sources."""
-        # External URLs for GPU acceleration knowledge
-        urls = [
-            "https://medium.com/cupy-team/announcing-cupy-v13-66979ee7fab0",
-            "https://www.unum.cloud/blog/2022-01-26-cupy",
-            "https://medium.com/rapids-ai/easy-cpu-gpu-arrays-and-dataframes-run-your-dask-code-where-youd-like-e349d92351d"
-        ]
-
+        """Load documents from centralized knowledge directory."""
+        print(f"📚 Loading documents from knowledge directory: {self.knowledge_dir}")
         docs = []
+        
+        # Load from sources.txt URLs
+        docs.extend(self._load_web_sources())
+        
+        # Load notebooks from knowledge/python_notebooks
+        docs.extend(self._load_notebooks())
+        
+        # Add curated content
+        docs.extend(self._load_curated_content())
+        
+        # Update stats
+        self.stats.total_documents = len(docs)
+        self.docs = docs
+        
+        print(self.stats.get_summary())
+        return docs
+        
+    def _load_web_sources(self) -> List[Document]:
+        """Load documents from URLs in sources.txt file."""
+        sources_file = os.path.join(self.knowledge_dir, "sources.txt")
+        docs = []
+        
+        if not os.path.exists(sources_file):
+            print(f"⚠️ Sources file not found: {sources_file}")
+            return docs
+            
+        print(f"🌐 Loading web sources from {sources_file}")
+        urls = self._parse_sources_file(sources_file)
+        
         for url in urls:
             try:
                 loaded_docs = WebBaseLoader(url).load()
                 docs.extend(loaded_docs)
+                self.stats.web_sources += 1
                 print(f"✅ Loaded web content from {url}")
             except Exception as e:
-                print(f"⚠️ Could not load {url}: {str(e)}")
-
-        # Load local notebook content if available
-        notebook_dir = "../python_notebooks"
-        notebook_files = [
-            "notebook-1-cupy.ipynb",
-            "notebook-2-rapids-cudf.ipynb", 
-            "notebook-3-rapids-cuml.ipynb",
-            "notebook-4-warp.ipynb"
-        ]
-
-        for nb_file in notebook_files:
-            nb_path = os.path.join(notebook_dir, nb_file)
-            if os.path.exists(nb_path):
-                try:
-                    nb_loader = NotebookLoader(nb_path, include_outputs=True, max_output_length=1000)
-                    nb_docs = nb_loader.load()
-                    docs.extend(nb_docs)
-                    print(f"✅ Loaded {nb_file}")
-                except Exception as e:
-                    print(f"⚠️ Could not load {nb_file}: {str(e)}")
-
-        # Add curated GPU acceleration content
-        gpu_acceleration_content = """
-# GPU Acceleration with NVIDIA Rapids
-
-## CuPy Performance Patterns
-- Matrix operations show 5-50x speedup on GPU vs CPU
-- Best performance for arrays > 1M elements
-- Memory bandwidth is often the bottleneck
-- Use .astype() to ensure optimal data types (float32)
-- Kernel launch overhead affects small operations
-
-## cuDF Performance Benefits  
-- DataFrame operations can achieve 10-100x speedup
-- GroupBy operations scale excellently on GPU
-- String operations benefit significantly from GPU parallelization
-- Best for datasets > 100K rows
-- Memory management is crucial for large datasets
-
-## cuML Machine Learning Acceleration
-- K-Means clustering: 10-50x speedup typical
-- Random Forest: 5-25x speedup
-- Logistic Regression: 3-15x speedup
-- UMAP/t-SNE: 10-100x speedup for dimensionality reduction
-
-## Best Practices for GPU Acceleration
-1. Keep data on GPU between operations
-2. Use appropriate data types (prefer float32 over float64)
-3. Batch operations to amortize kernel launch overhead
-4. Profile memory usage and optimize transfers
-5. Use @cupy.fuse for element-wise operations
-6. Consider problem size - GPU overhead for small data
-
-## When NOT to use GPU
-- Very small datasets (< 10K elements)
-- Sequential algorithms that don't parallelize
-- Frequent CPU-GPU memory transfers
-- Operations dominated by I/O
-"""
-
-        docs.append(Document(page_content=gpu_acceleration_content, metadata={"source": "curated_gpu_guide"}))
+                error_msg = str(e)[:100]
+                self.stats.web_sources_failed += 1
+                self.stats.add_failed_source(url, error_msg)
+                print(f"⚠️ Could not load {url}: {error_msg}")
+                
+        return docs
         
-        self.docs = docs
-        print(f"📚 Total documents loaded: {len(docs)}")
+    def _parse_sources_file(self, sources_file: str) -> List[str]:
+        """Parse the sources.txt file to extract URLs."""
+        urls = []
+        try:
+            with open(sources_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    # Skip comments and empty lines
+                    if line and not line.startswith('#'):
+                        # Simple URL validation
+                        if line.startswith(('http://', 'https://')):
+                            urls.append(line)
+            print(f"📝 Found {len(urls)} URLs in sources file")
+        except Exception as e:
+            print(f"⚠️ Error reading sources file: {e}")
+            
+        return urls
+        
+    def _load_notebooks(self) -> List[Document]:
+        """Load all notebooks from the knowledge/python_notebooks directory."""
+        notebooks_dir = os.path.join(self.knowledge_dir, "python_notebooks")
+        docs = []
+        
+        if not os.path.exists(notebooks_dir):
+            print(f"⚠️ Notebooks directory not found: {notebooks_dir}")
+            return docs
+            
+        print(f"📓 Loading notebooks from {notebooks_dir}")
+        
+        # Find all .ipynb files
+        notebook_pattern = os.path.join(notebooks_dir, "*.ipynb")
+        notebook_files = glob.glob(notebook_pattern)
+        
+        for nb_path in notebook_files:
+            try:
+                nb_loader = NotebookLoader(
+                    nb_path, 
+                    include_outputs=True, 
+                    max_output_length=1000,
+                    remove_newline=True
+                )
+                nb_docs = nb_loader.load()
+                docs.extend(nb_docs)
+                self.stats.notebooks += 1
+                nb_name = os.path.basename(nb_path)
+                print(f"✅ Loaded notebook: {nb_name}")
+            except Exception as e:
+                error_msg = str(e)[:100]
+                self.stats.notebooks_failed += 1
+                self.stats.add_failed_source(nb_path, error_msg)
+                print(f"⚠️ Could not load {os.path.basename(nb_path)}: {error_msg}")
+                
+        return docs
+        
+    def _load_curated_content(self) -> List[Document]:
+        """Load curated GPU acceleration content and best practices."""
+        docs = []
+        
+        # Core GPU acceleration guide
+        gpu_guide = self._create_gpu_acceleration_guide()
+        docs.append(gpu_guide)
+        self.stats.curated_content += 1
+        
+        # Performance optimization patterns
+        perf_guide = self._create_performance_guide()
+        docs.append(perf_guide)
+        self.stats.curated_content += 1
+        
+        # Common pitfalls and solutions
+        pitfalls_guide = self._create_pitfalls_guide()
+        docs.append(pitfalls_guide)
+        self.stats.curated_content += 1
+        
+        # Migration strategies
+        migration_guide = self._create_migration_guide()
+        docs.append(migration_guide)
+        self.stats.curated_content += 1
+        
+        print(f"� Added {len(docs)} curated content pieces")
         return docs
     
     def split_documents(self, docs: List[Document]) -> List[Document]:
