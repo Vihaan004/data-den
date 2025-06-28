@@ -173,6 +173,27 @@ IMPORTANT INSTRUCTIONS:
 - DO NOT use try-except blocks (error handling is done by the execution environment)
 - Focus on GPU-accelerated operations that showcase performance benefits
 
+GPU LIBRARY USAGE GUIDELINES:
+- Use cudf.DataFrame for GPU DataFrames, NOT cuml.DataFrame (cuML has no DataFrame class)
+- For correlations: use gdf.corr() ONLY on numeric columns, filter first: gdf.select_dtypes(include=['number']).corr()
+- For machine learning: import specific algorithms like 'from cuml.linear_model import LinearRegression'
+- For clustering: 'from cuml.cluster import KMeans'
+- For dimensionality reduction: 'from cuml.decomposition import PCA'
+- Always convert pandas to cuDF: gdf = cudf.from_pandas(df)
+- IMPORTANT: cuDF operations work best with numeric data, filter out string/object columns before GPU operations
+
+DATA HANDLING BEST PRACTICES:
+- Always select numeric columns before correlations: gdf.select_dtypes(include=['number'])
+- String/object columns (like names, departments) should be handled separately or converted to categorical
+- Check data types before GPU operations: print(gdf.dtypes)
+- Use gdf.describe(include='all') to see all column statistics
+
+MATPLOTLIB PLOTTING WITH cuDF:
+- cuDF Series/DataFrames cannot be used directly with matplotlib
+- Convert to numpy for plotting: gdf['column'].to_numpy() or gdf['column'].values
+- For machine learning with cuML, convert to cupy arrays: gdf['column'].to_cupy()
+- Example: plt.scatter(gdf['x'].to_numpy(), gdf['y'].to_numpy())
+
 Generate a complete, standalone Python script:
 
 EXAMPLE STRUCTURE:
@@ -181,14 +202,25 @@ import pandas as pd
 import cudf
 import matplotlib.pyplot as plt
 import numpy as np
+from cuml.linear_model import LinearRegression  # Import specific algorithms
 
 # Load dataset
 df = pd.read_csv('../datasets/{self.dataset_info['name']}')
 print(f"Dataset loaded: {{df.shape}}")
 
+# Convert to cuDF for GPU acceleration
+gdf = cudf.from_pandas(df)
+print("Data converted to cuDF format")
+
+# Check data types and filter numeric columns for GPU operations
+print("Data types:", gdf.dtypes)
+numeric_gdf = gdf.select_dtypes(include=['number'])
+print(f"Numeric columns: {{numeric_gdf.columns.tolist()}}")
+
 # Your analysis code here
-# Convert to cuDF if beneficial: gdf = cudf.from_pandas(df)
-# Perform GPU-accelerated operations
+# Use numeric_gdf.corr() for correlations on numeric data only
+# Use proper cuML imports for machine learning algorithms  
+# For plotting: use gdf['column'].to_numpy() to convert cuDF to numpy
 # Create visualizations with plt.savefig('filename.png') NOT plt.show()
 
 print("Analysis completed successfully")
@@ -378,7 +410,6 @@ print("Fallback analysis completed successfully")"""
         # Code Generation Section
         with gr.Row():
             with gr.Column():
-                gr.Markdown("### 💻 Code Generation")
                 selected_topic = gr.Textbox(
                     label="Selected Analysis Topic",
                     placeholder="Enter or copy one of the suggested analysis topics above...",
@@ -395,7 +426,7 @@ print("Fallback analysis completed successfully")"""
                     lines=20
                 )
             with gr.Column(scale=1):
-                code_explanation = gr.Markdown("### Code Explanation\\nGenerate code to see explanation.")
+                code_explanation = gr.Markdown("### Analysis Overview:")
         
         # Execution Section
         with gr.Row():
@@ -404,7 +435,7 @@ print("Fallback analysis completed successfully")"""
         # Results Section
         with gr.Row():
             with gr.Column(scale=2):
-                execution_output = gr.Markdown("### Execution Results\\nExecute code to see results.")
+                execution_output = gr.Markdown("### Execute analysis to see results")
             with gr.Column(scale=1):
                 plot_output = gr.Image(label="📈 Generated Plots")
     
@@ -431,7 +462,7 @@ print("Fallback analysis completed successfully")"""
         execute_btn.click(
             fn=self.execute_analysis,
             inputs=[generated_code],
-            outputs=[execution_output, plot_output, execution_status]
+            outputs=[execution_output, plot_output]
         )
     
     def _get_simple_fallback_suggestions(self):
