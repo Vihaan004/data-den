@@ -223,7 +223,7 @@ class GPUMentorApp:
                             type="messages",
                             value=[{
                                 "role": "assistant", 
-                                "content": """👋 **Welcome to GPU Mentor!**
+                                "content": """👋 **Welcome to GPU Gossip!**
 
 I'm your AI assistant for GPU acceleration with NVIDIA Rapids libraries. 
 
@@ -232,11 +232,10 @@ I'm your AI assistant for GPU acceleration with NVIDIA Rapids libraries.
 - Reference earlier topics with phrases like "what about...", "tell me more...", etc.
 - Build on our conversation naturally
 
-🚀 **What I can help with**:
+👤 **What I can help with**:
 - Analyze Python code for GPU optimization opportunities  
 - Convert NumPy → CuPy, Pandas → cuDF, scikit-learn → cuML
 - Explain GPU acceleration concepts and best practices
-- Answer follow-up questions based on our conversation
 
 Feel free to ask questions about GPU acceleration or paste code for analysis!"""
                             }]
