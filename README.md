@@ -1,5 +1,4 @@
 ﻿# DATA DEN
----
 Data Den is a comprehensive AI-powered workspace designed to help users learn, implement, and benchmark GPU acceleration techniques for data science applications. Featuring a multi-modal interface with a conversational RAG-based AI agent, Data Den offers a highly personalized experience for both beginners and advanced users. Hosted as a standalone Python app on Sol, it enables users to optimize and run custom tasks on GPUs through sbatch scripting. With seamless code optimization, benchmarking, guided analysis, and transparent workflow explanations, Data Den is poised for integration into classrooms, research labs, and collaborative environments, advancing accessible and high-performance data science.
 
 ## 🏗️ SYSTEM ARCHITECTURE OVERVIEW
